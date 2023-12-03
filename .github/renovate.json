@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base"
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "automergeStrategy": "rebase",
+  "packageRules": [
+    {
+      "matchPackagePatterns": [
+        "charmbracelet"
+      ],
+      "labels": [
+        "charm",
+        "dependencies",
+        "go"
+      ],
+      "groupName": "charm"
+    },
+    {
+      "matchPackagePatterns": [
+        "cobra",
+        "viper"
+      ],
+      "labels": [
+        "cobra",
+        "dependencies",
+        "go"
+      ],
+      "groupName": "cobra"
+    }
+  ]
+}

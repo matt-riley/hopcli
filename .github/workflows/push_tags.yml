@@ -1,0 +1,40 @@
+---
+name: releaser
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: git fetch --force --tags
+      - uses: actions/setup-go@v4
+        with:
+          go-version: 1.21.0
+      - uses: goreleaser/goreleaser-action@v5
+        id: releaser
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+      - run: |
+          echo "binary=$(jq -r '.[] | select(.name == "hopt" and .goos == "linux" and .goarch == "amd64" and .goamd64 == "v1") | .path' ./dist/artifacts.json)" >> $GITHUB_OUTPUT
+        id: binary
+      - uses: actions/upload-artifact@v3
+        with:
+          name: mattd
+          path: ${{ steps.binary.outputs.binary }}
+          retention-days: 1
+

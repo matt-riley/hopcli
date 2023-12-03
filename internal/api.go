@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -27,7 +28,8 @@ type Client struct{}
 
 func (c *Client) GetLatest() (Products, error) {
 	var latestProducts Products
-	result, err := http.Get("https://thehoptimist.co.uk/wp-json/wp/v2/product?order_by=date")
+	client := &http.Client{}
+	result, err := client.Get("https://thehoptimist.co.uk/wp-json/wp/v2/product?order_by=date")
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +44,8 @@ func (c *Client) GetLatest() (Products, error) {
 
 func (c *Client) GetCategories() (ProductCategories, error) {
 	var productCategories ProductCategories
-	result, err := http.Get("https://thehoptimist.co.uk/wp-json/wp/v2/product_cat")
+	client := &http.Client{}
+	result, err := client.Get("https://thehoptimist.co.uk/wp-json/wp/v2/product_cat")
 	if err != nil {
 		return nil, err
 	}
@@ -53,4 +56,36 @@ func (c *Client) GetCategories() (ProductCategories, error) {
 		return nil, err
 	}
 	return productCategories, nil
+}
+
+func (c *Client) GetProduct(id int) (Product, error) {
+	var product Product
+	client := &http.Client{}
+	result, err := client.Get("https://thehoptimist.co.uk/wp-json/wp/v2/product/" + fmt.Sprint(id))
+	if err != nil {
+		return Product{}, err
+	}
+	defer result.Body.Close()
+
+	err = json.NewDecoder(result.Body).Decode(&product)
+	if err != nil {
+		return Product{}, err
+	}
+
+	return product, nil
+}
+
+func (c *Client) GetProductsByCategory(id int) (Products, error) {
+	var products Products
+	client := &http.Client{}
+	result, err := client.Get("https://thehoptimist.co.uk/wp-json/wp/v2/product?product_cat=" + fmt.Sprint(id))
+	if err != nil {
+		return nil, err
+	}
+	defer result.Body.Close()
+	err = json.NewDecoder(result.Body).Decode(&products)
+	if err != nil {
+		return nil, err
+	}
+	return products, nil
 }

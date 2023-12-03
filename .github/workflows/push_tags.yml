@@ -34,7 +34,6 @@ jobs:
         id: binary
       - uses: actions/upload-artifact@v3
         with:
-          name: mattd
+          name: hopt
           path: ${{ steps.binary.outputs.binary }}
           retention-days: 1
-

@@ -4,67 +4,102 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+
+	"github.com/matt-riley/hopcli/internal/commands"
+	defaultview "github.com/matt-riley/hopcli/internal/default"
+	"github.com/matt-riley/hopcli/internal/latest"
+	productview "github.com/matt-riley/hopcli/internal/product"
 )
 
-type LatestResponseMsg struct {
-	Products Products
-	Err      error
+var logo = `
+⠀⠀⠀⠀⠀⠀⠀⢀⣰⣶⣶⣤⣤⣤⣤⣤⣀⠀⣀⣀⣀⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⣀⣤⣤⣤⣬⣽⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣄⠀⠀⠀⠀⠀⠀
+⠀⠐⠚⣻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⢿⣿⣿⣿⣿⣿⣷⣄⣄⠀⠀⠀
+⠐⣶⣾⣿⣿⣿⢿⣿⣿⣿⣿⣦⣍⠻⣿⣿⣿⣿⣦⡙⢿⣿⣿⣿⣿⣿⣿⣷⡄⠀
+⠀⢿⣿⣿⣿⣿⣶⣍⠛⢿⣿⣿⣿⣷⡈⠻⣿⣿⣿⣿⡄⠹⣿⣿⣿⣿⣿⣿⣷⡀
+⢠⣌⣿⣿⣿⡟⠁⠀⠀⠀⠈⠉⠛⠛⠛⠂⠈⠛⠋⠉⠁⠀⠀⠀⠙⣱⣿⣿⣿⡇
+⠘⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⡿⠁
+⠀⢹⣿⣿⡟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢻⣿⣿⠇⠀
+⠀⠀⢻⣿⣀⣠⠤⠤⠤⠤⠤⠤⣄⡀⠀⠀⠀⣀⡤⠤⠤⠤⠤⢤⣀⣈⣿⡟⠀⠀
+⠠⡖⢸⡟⡟⠀⠀⠀⠀⠀⠀⠀⠀⢹⡶⢶⡏⠀⠀⠀⠀⠀⠀⠀⠈⣿⢻⡇⢾⡄
+⠀⡇⠀⡇⠰⡀⠀⠀⠀⠀⠀⠀⢠⠟⠀⠈⢣⡀⠀⠀⠀⠀⠀⠀⢠⠏⢸⠁⢸⠃
+⠀⠱⠀⡇⠀⠙⠢⠤⠤⠤⠤⠖⠋⠀⠀⠀⠀⠙⠢⠤⠤⠤⠤⠴⠋⠀⣼⠀⠃⠀
+⠀⠀⠀⣿⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢸⡏⠀⠀⠀
+⠀⠀⠀⣿⣧⠀⠀⠀⠀⢀⣠⣴⣶⡷⠶⠶⢶⣶⣦⣤⣀⠀⠀⠀⠀⣾⡇⠀⠀⠀
+⠀⠀⠀⠘⣿⣦⠀⠀⣴⡟⠉⠉⠁⢀⣀⣀⡀⠀⠈⠉⠻⣧⡀⢀⣼⣿⡇⠀⠀⠀
+⠀⠀⠀⠀⢸⣿⣷⣼⣿⣤⣤⣤⣴⣿⣿⣿⣿⣦⣤⣤⣤⣿⣷⣼⣿⣿⠃⠀⠀⠀
+⠀⠀⠀⠀⢸⣿⣿⣿⣿⣿⣿⡿⢿⣿⣿⣿⣿⡿⢿⣿⣿⣿⣿⣿⣿⡇⠀⠀⠀⠀
+⠀⠀⠀⠀⢼⣿⣿⡿⠿⠛⣉⣴⡈⢿⣿⣿⡿⢡⣦⣙⠻⠿⢿⣿⣿⡇⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⣶⣶⣶⠀⣿⣿⣿⣿⣦⠙⢋⣴⣿⣿⣿⣿⠀⣶⣶⡦⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⢿⣿⡿⠀⠿⠿⠿⢛⣡⣶⣷⣌⠛⠿⠿⠿⠀⣿⣿⡟⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⢰⣶⣶⣶⣷⠘⣿⣿⣿⡿⢁⣿⣶⣶⣶⡆⠈⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠈⢿⣿⣿⡿⠓⣈⡛⢛⣁⠺⢿⣿⣿⡿⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠉⠀⠐⢿⣿⣿⣿⣿⡗⠀⠈⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠙⠿⠟⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀`
+
+type sessionState uint
+
+const (
+	defaultView sessionState = iota
+	latestView
+	productView
+)
+
+type MainModel struct {
+	state        sessionState
+	currentView  tea.Model
+	previousView tea.Model
 }
 
-type Product struct {
-	ID    int    `json:"id"`
-	Link  string `json:"link"`
-	Title struct {
-		Rendered string `json:"rendered"`
-	} `json:"title"`
-	Description struct {
-		Rendered string `json:"rendered"`
-	} `json:"excerpt"`
-}
-
-type Products []Product
-
-type Model struct {
-	choices  list.Model
-	cursor   int
-	selected map[int]struct{}
-}
-
-type ListItem struct {
-	title string
-	desc  string
-	link  string
-}
-
-func (i ListItem) Title() string       { return i.title }
-func (i ListItem) Description() string { return i.desc }
-func (i ListItem) Link() string        { return i.link }
-func (i ListItem) FilterValue() string { return i.title }
-
-func initialModel() Model {
-	items := []list.Item{
-		ListItem{title: "Latest", desc: "Latest items added"},
+func InitialModel() MainModel {
+	return MainModel{
+		state:       defaultView,
+		currentView: defaultview.InitialModel(),
 	}
-
-	return Model{
-		choices:  list.New(items, list.NewDefaultDelegate(), 0, 0),
-		selected: make(map[int]struct{}),
-	}
 }
 
-func (m Model) Init() tea.Cmd {
+func (mm MainModel) Init() tea.Cmd {
 	return nil
 }
 
+func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q":
+			return mm, tea.Quit
+		case "h", "left":
+			if mm.state > defaultView {
+				mm.currentView = mm.previousView
+			}
+		}
+
+	case commands.LatestResponseMsg:
+		model := latest.NewLatestModel()
+		mm.state = latestView
+		mm.previousView = mm.currentView
+		mm.currentView = model
+	case commands.ProductsMsg:
+		model := productview.NewProductModel()
+		mm.state = productView
+		mm.previousView = mm.currentView
+		mm.currentView = model
+	}
+
+	var cmd tea.Cmd
+	mm.currentView, cmd = mm.currentView.Update(msg)
+	return mm, cmd
+}
+
+func (mm MainModel) View() string {
+	output := lipgloss.JoinHorizontal(lipgloss.Top, logo, mm.currentView.View())
+	return output
+}
+
 func Run() {
-	model := initialModel()
-	model.choices.SetShowTitle(true)
-	model.choices.Title = "The Hoptimist"
-	model.choices.SetFilteringEnabled(false)
-	model.choices.SetShowHelp(false)
-	model.choices.SetShowStatusBar(false)
+	model := InitialModel()
 	p := tea.NewProgram(model, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)

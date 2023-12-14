@@ -32,7 +32,7 @@ jobs:
       - run: |
           echo "binary=$(jq -r '.[] | select(.name == "hopt" and .goos == "linux" and .goarch == "amd64" and .goamd64 == "v1") | .path' ./dist/artifacts.json)" >> $GITHUB_OUTPUT
         id: binary
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: hopt
           path: ${{ steps.binary.outputs.binary }}

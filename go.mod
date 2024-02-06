@@ -1,6 +1,6 @@
 module github.com/matt-riley/hopcli
 
-go 1.21.6
+go 1.22.0
 
 require (
 	github.com/JohannesKaufmann/html-to-markdown v1.5.0

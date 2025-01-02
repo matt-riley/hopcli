@@ -6,3 +6,10 @@ linters:
     - unconvert
     - unparam
     - wastedassign
+output:
+  print-issued-lines: true
+  print-linter-name: true
+  show-stats: false
+  sort-results: true
+  formats:
+  - format: colored-line-number

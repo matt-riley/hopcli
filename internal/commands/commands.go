@@ -57,7 +57,6 @@ func HandleGetLatest(w int, h int) tea.Cmd {
 
 		var products Products
 		err = json.NewDecoder(res.Body).Decode(&products)
-
 		if err != nil {
 			return LatestResponseMsg{
 				Err: err,

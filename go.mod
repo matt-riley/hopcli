@@ -5,7 +5,7 @@ go 1.22.1
 toolchain go1.23.4
 
 require (
-	github.com/JohannesKaufmann/html-to-markdown v1.6.0
+	github.com/JohannesKaufmann/html-to-markdown/v2 v2.2.2
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.2.2
 	github.com/charmbracelet/bubbles v0.20.0
 	github.com/charmbracelet/bubbletea v1.2.4

@@ -3,10 +3,10 @@ module github.com/matt-riley/hopcli
 go 1.22.1
 
 require (
-	github.com/JohannesKaufmann/html-to-markdown/v2 v2.2.2
+	github.com/JohannesKaufmann/html-to-markdown v1.6.0
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.2.2
 	github.com/charmbracelet/bubbles v0.20.0
-	github.com/charmbracelet/bubbletea v1.2.4
+	github.com/charmbracelet/bubbletea v1.3.2
 	github.com/charmbracelet/glamour v0.8.0
 	github.com/charmbracelet/lipgloss v1.0.0
 )
@@ -19,7 +19,7 @@ require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
-	github.com/charmbracelet/x/ansi v0.4.5 // indirect
+	github.com/charmbracelet/x/ansi v0.8.0 // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
 	github.com/dlclark/regexp2 v1.11.0 // indirect
@@ -40,8 +40,8 @@ require (
 	github.com/yuin/goldmark v1.7.8 // indirect
 	github.com/yuin/goldmark-emoji v1.0.3 // indirect
 	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/sync v0.11.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/term v0.27.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 )

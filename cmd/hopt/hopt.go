@@ -289,10 +289,7 @@ func (mm MainModel) View() string {
 	if mm.ErrMsg != "" {
 		errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Width(mm.Width).Align(lipgloss.Center)
 		errorMessage := errorStyle.Render("Error: " + mm.ErrMsg)
-		errorViewHeight := mm.Height - lipgloss.Height(styledFooter)
-		if errorViewHeight < 0 {
-			errorViewHeight = 0
-		}
+		errorViewHeight := max(mm.Height-lipgloss.Height(styledFooter), 0)
 		centeredError := lipgloss.Place(mm.Width, errorViewHeight, lipgloss.Center, lipgloss.Center, errorMessage)
 		return lipgloss.JoinVertical(lipgloss.Left, centeredError, styledFooter)
 	}
@@ -305,10 +302,7 @@ func (mm MainModel) View() string {
 			"Loading...",
 		)
 		// Calculate height for loading view area, leave space for footer
-		loadingViewHeight := mm.Height - lipgloss.Height(styledFooter)
-		if loadingViewHeight < 0 {
-			loadingViewHeight = 0
-		}
+		loadingViewHeight := max(mm.Height-lipgloss.Height(styledFooter), 0)
 		centeredLoadingView := lipgloss.Place(mm.Width, loadingViewHeight, lipgloss.Center, lipgloss.Center, loadingViewContent)
 		return lipgloss.JoinVertical(lipgloss.Left, centeredLoadingView, styledFooter)
 	}
@@ -316,30 +310,10 @@ func (mm MainModel) View() string {
 	// If not loading and no error, show the current view with logo and footer
 	currentViewRender := mm.CurrentView.View()
 
-	// Calculate available height for the main content (logo + current view)
-	mainContentHeight := mm.Height - lipgloss.Height(styledFooter)
-	if mainContentHeight < 0 {
-		mainContentHeight = 0
-	}
-
 	// Join logo and current view horizontally
 	logoAndCurrentView := lipgloss.JoinHorizontal(lipgloss.Top, logo, currentViewRender)
 
-	// This part is tricky without knowing the exact height of logo and currentViewRender.
-	// We will assume that logoAndCurrentView might be taller than mainContentHeight and let it be clipped or scroll.
-	// For a more robust solution, the heights of logo and currentViewRender would need to be managed.
-	// For now, we'll join them and then join with the footer.
-
 	finalLayout := lipgloss.JoinVertical(lipgloss.Left, logoAndCurrentView, styledFooter)
-
-	// If the total height is still too much, we might need to Place the main content area.
-	// However, JoinVertical doesn't inherently know about mm.Height to constrain itself.
-	// Let's try to ensure the main interactive area (currentViewRender) is what gets space.
-
-	// A slightly better approach for the main content area to respect height:
-	// Calculate height for the current view area (mainContentHeight - logo height)
-	// This is still an approximation as logo height isn't fixed based on terminal width.
-	// For now, the simpler JoinVertical is used as per Option A.
 
 	return finalLayout
 }

@@ -28,7 +28,7 @@ jobs:
         run: mkdir -p assets # Ensures the output directory for VHS exists
 
       - name: Generate GIF with VHS Action
-        uses: charmbracelet/vhs-action@v1
+        uses: charmbracelet/vhs-action@v2
         with:
           path: 'tapes/demo.tape'
 

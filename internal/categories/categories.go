@@ -22,7 +22,7 @@ func (i CategoryListItem) Description() string { return "Slug: " + i.Slug }
 func (i CategoryListItem) FilterValue() string { return i.Name }
 
 type Model struct {
-	list             list.Model
+	List             list.Model // Exported
 	width            int
 	height           int
 	selectedCategory CategoryListItem
@@ -30,7 +30,7 @@ type Model struct {
 
 func NewCategoriesModel() Model {
 	return Model{
-		list: list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0),
+		List: list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0), // Use exported field
 	}
 }
 
@@ -47,7 +47,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		docStyle.Width(m.width)
 		docStyle.Height(m.height)
-		m.list.SetSize(msg.Width-docStyle.GetHorizontalFrameSize(), msg.Height-docStyle.GetVerticalFrameSize())
+		m.List.SetSize(msg.Width-docStyle.GetHorizontalFrameSize(), msg.Height-docStyle.GetVerticalFrameSize()) // Use exported field
 		return m, nil
 
 	case commands.CategoriesResponseMsg:
@@ -71,17 +71,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				})
 			}
 		}
-		m.list.SetItems(items)
-		m.list.Title = "Browse Categories"
-		m.list.SetShowStatusBar(true)
-		m.list.SetFilteringEnabled(false)                                                                   // Can enable if needed
-		m.list.SetSize(m.width-docStyle.GetHorizontalFrameSize(), m.height-docStyle.GetVerticalFrameSize()) // Recalculate size based on current width/height
+		m.List.SetItems(items)                                                                              // Use exported field
+		m.List.Title = "Browse Categories"                                                                  // Use exported field
+		m.List.SetShowStatusBar(true)                                                                       // Use exported field
+		m.List.SetFilteringEnabled(false)                                                                   // Use exported field, Can enable if needed
+		m.List.SetSize(m.width-docStyle.GetHorizontalFrameSize(), m.height-docStyle.GetVerticalFrameSize()) // Use exported field, Recalculate size based on current width/height
 		return m, nil
 
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			selectedItem, ok := m.list.SelectedItem().(CategoryListItem)
+			selectedItem, ok := m.List.SelectedItem().(CategoryListItem) // Use exported field
 			if ok {
 				m.selectedCategory = selectedItem
 				// Trigger loading products for this category
@@ -99,17 +99,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
+	m.List, cmd = m.List.Update(msg) // Use exported field
 	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
 }
 
 func (m Model) View() string {
-	if m.list.Items() == nil || len(m.list.Items()) == 0 {
+	if m.List.Items() == nil || len(m.List.Items()) == 0 { // Use exported field
 		return docStyle.Render("Loading categories...")
 	}
-	return docStyle.Render(m.list.View())
+	return docStyle.Render(m.List.View()) // Use exported field
 }
 
 // Helper function to get the selected category if needed by other parts of the app

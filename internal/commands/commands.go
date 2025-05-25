@@ -134,8 +134,32 @@ func HandleGetLatest(w int, h int, page int, perPage int) tea.Cmd {
 
 		totalItemsStr := res.Header.Get("X-WP-Total")
 		totalPagesStr := res.Header.Get("X-WP-TotalPages")
-		totalItems, _ := strconv.Atoi(totalItemsStr)
-		totalPages, _ := strconv.Atoi(totalPagesStr)
+
+		var totalItems int
+		if totalItemsStr != "" {
+			parsedTotalItems, err := strconv.Atoi(totalItemsStr)
+			if err != nil {
+				// fmt.Fprintf(os.Stderr, "Warning: could not parse X-WP-Total header '%s': %v\n", totalItemsStr, err)
+				totalItems = 0 // Default to 0 on error
+			} else {
+				totalItems = parsedTotalItems
+			}
+		} else {
+			totalItems = 0 // Default if header is empty
+		}
+
+		var totalPages int
+		if totalPagesStr != "" {
+			parsedTotalPages, err := strconv.Atoi(totalPagesStr)
+			if err != nil {
+				// fmt.Fprintf(os.Stderr, "Warning: could not parse X-WP-TotalPages header '%s': %v\n", totalPagesStr, err)
+				totalPages = 0 // Default to 0 on error
+			} else {
+				totalPages = parsedTotalPages
+			}
+		} else {
+			totalPages = 0 // Default if header is empty
+		}
 
 		var products Products
 		decodeErr := json.NewDecoder(res.Body).Decode(&products) // Renamed err to decodeErr
@@ -220,8 +244,32 @@ func HandleGetProductsByCategory(w int, h int, categoryID int, categoryName stri
 
 		totalItemsStr := res.Header.Get("X-WP-Total")
 		totalPagesStr := res.Header.Get("X-WP-TotalPages")
-		totalItems, _ := strconv.Atoi(totalItemsStr)
-		totalPages, _ := strconv.Atoi(totalPagesStr)
+
+		var totalItems int
+		if totalItemsStr != "" {
+			parsedTotalItems, err := strconv.Atoi(totalItemsStr)
+			if err != nil {
+				// fmt.Fprintf(os.Stderr, "Warning: could not parse X-WP-Total header '%s': %v\n", totalItemsStr, err)
+				totalItems = 0 // Default to 0 on error
+			} else {
+				totalItems = parsedTotalItems
+			}
+		} else {
+			totalItems = 0 // Default if header is empty
+		}
+
+		var totalPages int
+		if totalPagesStr != "" {
+			parsedTotalPages, err := strconv.Atoi(totalPagesStr)
+			if err != nil {
+				// fmt.Fprintf(os.Stderr, "Warning: could not parse X-WP-TotalPages header '%s': %v\n", totalPagesStr, err)
+				totalPages = 0 // Default to 0 on error
+			} else {
+				totalPages = parsedTotalPages
+			}
+		} else {
+			totalPages = 0 // Default if header is empty
+		}
 
 		var products Products
 		decodeErr := json.NewDecoder(res.Body).Decode(&products)

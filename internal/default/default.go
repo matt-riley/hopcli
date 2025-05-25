@@ -18,7 +18,7 @@ type StartLoadingLatestMsg struct{}
 type StartLoadingCategoriesMsg struct{}
 
 type DefaultModel struct {
-	choices list.Model
+	Choices list.Model // Exported
 }
 
 type ListItem struct {
@@ -37,7 +37,7 @@ func InitialModel() DefaultModel {
 	}
 
 	return DefaultModel{
-		choices: list.New(items, list.NewDefaultDelegate(), 0, 0),
+		Choices: list.New(items, list.NewDefaultDelegate(), 0, 0), // Use exported field
 	}
 }
 
@@ -54,7 +54,7 @@ func (dm DefaultModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q", "esc":
 			return dm, tea.Quit
 		case "enter":
-			switch dm.choices.Index() {
+			switch dm.Choices.Index() { // Use exported field
 			case latest:
 				return dm, func() tea.Msg { return StartLoadingLatestMsg{} }
 			case categories:
@@ -64,17 +64,17 @@ func (dm DefaultModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		h, v := docStyle.GetFrameSize()
-		dm.choices.SetSize(msg.Width-h, msg.Height-v)
+		dm.Choices.SetSize(msg.Width-h, msg.Height-v) // Use exported field
 	}
 
 	var cmd tea.Cmd
-	dm.choices, cmd = dm.choices.Update(msg)
+	dm.Choices, cmd = dm.Choices.Update(msg) // Use exported field
 	return dm, cmd
 }
 
 func (dm DefaultModel) View() string {
-	dm.choices.Title = "The Hoptimist"
-	dm.choices.SetFilteringEnabled(false)
-	dm.choices.SetShowStatusBar(false)
-	return dm.choices.View()
+	dm.Choices.Title = "The Hoptimist"    // Use exported field
+	dm.Choices.SetFilteringEnabled(false) // Use exported field
+	dm.Choices.SetShowStatusBar(false)    // Use exported field
+	return dm.Choices.View()              // Use exported field
 }

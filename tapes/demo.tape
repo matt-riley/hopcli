@@ -1,16 +1,19 @@
 # Hoptimist CLI Demo Tape
 
-Output assets/demo.gif
+Output assets/demo.webm
 
 # Set up shell and speed
 Set Shell "bash"
 Set TypingSpeed 100ms
 Set PlaybackSpeed 1
 Set Height 800
+Set Theme "Catppuccin Mocha"
 
 # Start the application
+Hide
 Type "./hopcli" Enter
 Sleep 2s
+Show
 
 # Show latest products
 # (Assuming "Latest" is the first option and selected by default, or press Enter to select)

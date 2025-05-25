@@ -78,7 +78,7 @@ func InitialModel() MainModel {
 	cm := categories.NewCategoriesModel()
 	// For cpm, categoryName and categoryID will be updated when a category is chosen.
 	// Initialize with placeholder values.
-	cpm := categoryproducts.NewModel("", 0)
+	cpm := categoryproducts.NewModel("", 0, "") // Added empty apiEndpoint
 	pm := productview.NewProductModel()
 
 	return MainModel{
@@ -137,7 +137,8 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case defaultview.StartLoadingLatestMsg:
 		mm.Loading = true
 		mm.ErrMsg = ""
-		cmds = append(cmds, commands.HandleGetLatest(mm.Width, mm.Height))
+		// Ensure initial load is page 1, use PerPage from the model (defaulted in NewLatestModel)
+		cmds = append(cmds, commands.HandleGetLatest(mm.Width, mm.Height, 1, mm.LatestModel.PerPage))
 
 	case defaultview.StartLoadingCategoriesMsg:
 		mm.Loading = true
@@ -149,14 +150,26 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Err != nil {
 			mm.ErrMsg = msg.Err.Error()
 		} else {
+			// If not already in LatestView, it's an initial load for this view type.
+			if mm.State != LatestView {
+				// mm.LatestModel = latest.NewLatestModel() // Already initialized in InitialModel
+				mm.PreviousViews = append(mm.PreviousViews, mm.CurrentView) // Only add to stack if changing view type
+				mm.State = LatestView
+			}
+			// Update the existing (or newly created) LatestModel instance
 			updatedViewModel, cmd = mm.LatestModel.Update(msg)
 			mm.LatestModel = updatedViewModel.(latest.LatestModel)
 			cmds = append(cmds, cmd)
-			mm.PreviousViews = append(mm.PreviousViews, mm.CurrentView)
-			mm.CurrentView = mm.LatestModel
-			mm.State = LatestView
+			mm.CurrentView = mm.LatestModel // Ensure CurrentView points to the updated model
 			mm.ErrMsg = ""
 		}
+
+	case commands.LoadLatestPageMsg: // New
+		mm.Loading = true
+		mm.ErrMsg = ""
+		// The CurrentView is still LatestModel, so we don't push to PreviousViews
+		// We are just re-loading data for the current view type.
+		cmds = append(cmds, commands.HandleGetLatest(mm.Width, mm.Height, msg.Page, msg.PerPage))
 
 	case commands.CategoriesResponseMsg:
 		mm.Loading = false
@@ -175,24 +188,34 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case commands.StartLoadingProductsForCategoryMsg:
 		mm.Loading = true
 		mm.ErrMsg = ""
-		cmds = append(cmds, commands.HandleGetProductsByCategory(msg.Width, msg.Height, msg.CategoryID, msg.CategoryName, msg.APIEndpoint))
+		// Ensure initial load is page 1, use PerPage from the model (defaulted in NewCategoryProductsModel)
+		cmds = append(cmds, commands.HandleGetProductsByCategory(mm.Width, mm.Height, msg.CategoryID, msg.CategoryName, msg.APIEndpoint, 1, mm.CategoryProductsModel.PerPage))
 
 	case commands.ProductsForCategoryResponseMsg:
 		mm.Loading = false
 		if msg.Err != nil {
 			mm.ErrMsg = msg.Err.Error()
 		} else {
-			// CategoryProductsModel is typically created new each time, so no zero check needed here.
-			// It's initialized directly.
-			mm.CategoryProductsModel = categoryproducts.NewModel(msg.CategoryName, msg.CategoryID)
-			updatedViewModel, cmd = mm.CategoryProductsModel.Update(msg)
+			// If current state is not CategoryProductsView OR if the category ID differs,
+			// it's a new category product listing.
+			if mm.State != CategoryProductsView || mm.CategoryProductsModel.CategoryID() != msg.CategoryID { // Used getter
+				mm.CategoryProductsModel = categoryproducts.NewModel(msg.CategoryName, msg.CategoryID, msg.APIEndpoint)
+				mm.PreviousViews = append(mm.PreviousViews, mm.CurrentView)
+				mm.State = CategoryProductsView
+			}
+			// Update the model (either newly created or existing)
+			updatedViewModel, cmd := mm.CategoryProductsModel.Update(msg)
 			mm.CategoryProductsModel = updatedViewModel.(categoryproducts.Model)
 			cmds = append(cmds, cmd)
-			mm.PreviousViews = append(mm.PreviousViews, mm.CurrentView)
 			mm.CurrentView = mm.CategoryProductsModel
-			mm.State = CategoryProductsView
 			mm.ErrMsg = ""
 		}
+
+	case commands.LoadCategoryProductsPageMsg: // New
+		mm.Loading = true
+		mm.ErrMsg = ""
+		// Similar to LoadLatestPageMsg, CurrentView is CategoryProductsModel.
+		cmds = append(cmds, commands.HandleGetProductsByCategory(mm.Width, mm.Height, msg.CategoryID, msg.CategoryName, msg.APIEndpoint, msg.Page, msg.PerPage))
 
 	case commands.ProductsMsg: // This is for displaying a single product
 		mm.Loading = false
@@ -242,7 +265,9 @@ func (mm MainModel) View() string {
 	switch mm.State {
 	case DefaultView:
 		helpContent = "↑/↓: navigate | enter: select | q: quit"
-	case LatestView, CategoriesView, CategoryProductsView:
+	case LatestView, CategoryProductsView:
+		helpContent = "↑/↓: navigate | enter: select | h/←: back | n: next | p: prev | q: quit"
+	case CategoriesView: // Categories view does not have n/p for its own list
 		helpContent = "↑/↓: navigate | enter: select | h/←: back | q: quit"
 	case ProductView:
 		helpContent = "h/←: back | q: quit"

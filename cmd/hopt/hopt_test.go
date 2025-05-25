@@ -10,8 +10,10 @@ import (
 	"github.com/matryer/is"
 
 	"github.com/matt-riley/hopcli/cmd/hopt"
+	"github.com/matt-riley/hopcli/internal/categoryproducts" // Added import
 	"github.com/matt-riley/hopcli/internal/commands"
 	"github.com/matt-riley/hopcli/internal/default"
+	"github.com/matt-riley/hopcli/internal/latest" // Added import
 )
 
 func TestInitialModel(t *testing.T) {
@@ -239,5 +241,148 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		m = updatedModel.(hopt.MainModel)
 		is.Equal(m.State, hopt.DefaultView) // Should remain in DefaultView
 		is.Equal(len(m.PreviousViews), 0)   // PreviousViews stack should still be empty
+	})
+
+	t.Run("should handle LoadLatestPageMsg", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+		// Transition to LatestView first to simulate being in that view
+		updatedModel, _ := m.Update(defaultview.StartLoadingLatestMsg{})
+		m = updatedModel.(hopt.MainModel)
+		updatedModel, _ = m.Update(commands.LatestResponseMsg{Products: &commands.Products{}, TotalItems: 20, TotalPages: 2})
+		m = updatedModel.(hopt.MainModel) // Now in LatestView
+
+		initialPreviousViewsLen := len(m.PreviousViews)
+
+		updatedModel, cmd := m.Update(commands.LoadLatestPageMsg{Page: 2, PerPage: 5})
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.Loading, true)
+		is.True(cmd != nil)
+		is.Equal(m.State, hopt.LatestView)                      // State should remain LatestView
+		is.Equal(len(m.PreviousViews), initialPreviousViewsLen) // PreviousViews stack should not change
+	})
+
+	t.Run("should handle LoadCategoryProductsPageMsg", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+		// Transition to CategoryProductsView first
+		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 1, CategoryName: "Test", APIEndpoint: "test/ep"})
+		m = updatedModel.(hopt.MainModel)
+		updatedModel, _ = m.Update(commands.ProductsForCategoryResponseMsg{CategoryID: 1, CategoryName: "Test", APIEndpoint: "test/ep", Products: &commands.Products{}, TotalItems: 20, TotalPages: 2})
+		m = updatedModel.(hopt.MainModel) // Now in CategoryProductsView for CategoryID 1
+
+		initialPreviousViewsLen := len(m.PreviousViews)
+
+		updatedModel, cmd := m.Update(commands.LoadCategoryProductsPageMsg{CategoryID: 1, CategoryName: "Test", APIEndpoint: "test/ep", Page: 2, PerPage: 5})
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.Loading, true)
+		is.True(cmd != nil)
+		is.Equal(m.State, hopt.CategoryProductsView)            // State should remain CategoryProductsView
+		is.Equal(len(m.PreviousViews), initialPreviousViewsLen) // PreviousViews stack should not change
+		is.Equal(m.CategoryProductsModel.CategoryID(), 1)       // Still the same category
+	})
+
+	t.Run("should update LatestModel on LatestResponseMsg when already in LatestView", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+		// Initial transition to LatestView
+		updatedModel, _ := m.Update(defaultview.StartLoadingLatestMsg{})
+		m = updatedModel.(hopt.MainModel)
+		updatedModel, _ = m.Update(commands.LatestResponseMsg{Products: &commands.Products{{ID: 1}}, TotalItems: 10, TotalPages: 1})
+		m = updatedModel.(hopt.MainModel)
+
+		initialPreviousViewsLen := len(m.PreviousViews)
+		// Store a property of the model before the update to check if it's the same instance
+		// For example, if LatestModel had an accessible field or we check CurrentPage if it's not reset by Update
+		// Here, we check if CurrentView which points to m.LatestModel is the same instance after update.
+		// Note: This is tricky as the model itself is a struct, so CurrentView holds a copy.
+		// A better check is if the fields within m.LatestModel are updated.
+
+		productsPage2 := &commands.Products{{ID: 2, Title: struct {
+			Rendered string `json:"rendered"`
+		}{Rendered: "Beer Page 2"}}}
+		msg := commands.LatestResponseMsg{Products: productsPage2, TotalItems: 20, TotalPages: 2, Width: 80, Height: 24}
+
+		// Capture current LatestModel's CurrentPage before this update for comparison if it's changed by the Update call
+		// This relies on LatestModel.Update correctly setting these from the msg.
+		// Let's assume for this test LatestModel.Update updates its own fields from msg.
+
+		updatedModel, _ = m.Update(msg)
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.Loading, false)
+		is.Equal(m.State, hopt.LatestView)
+		is.Equal(len(m.PreviousViews), initialPreviousViewsLen) // Stack should not grow
+		is.Equal(m.LatestModel.TotalPages, 2)                   // Check if model data updated
+		_, ok := m.CurrentView.(latest.LatestModel)
+		is.True(ok) // Corrected type assertion
+	})
+
+	t.Run("should update CategoryProductsModel on ProductsForCategoryResponseMsg when in same CategoryProductsView", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+
+		// Initial transition to CategoryProductsView for CategoryID 123
+		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 123, CategoryName: "Test Cat", APIEndpoint: "test/ep"})
+		m = updatedModel.(hopt.MainModel)
+		updatedModel, _ = m.Update(commands.ProductsForCategoryResponseMsg{
+			CategoryID: 123, CategoryName: "Test Cat", APIEndpoint: "test/ep",
+			Products: &commands.Products{{ID: 1}}, TotalItems: 10, TotalPages: 1,
+		})
+		m = updatedModel.(hopt.MainModel)
+
+		initialPreviousViewsLen := len(m.PreviousViews)
+
+		productsPage2 := &commands.Products{{ID: 2}}
+		msg := commands.ProductsForCategoryResponseMsg{
+			CategoryID: 123, CategoryName: "Test Cat", APIEndpoint: "test/ep",
+			Products: productsPage2, TotalItems: 20, TotalPages: 2, Width: 80, Height: 24,
+		}
+		updatedModel, _ = m.Update(msg)
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.Loading, false)
+		is.Equal(m.State, hopt.CategoryProductsView)
+		is.Equal(len(m.PreviousViews), initialPreviousViewsLen)
+		is.Equal(m.CategoryProductsModel.CategoryID(), 123) // Use getter, Still same category
+		is.Equal(m.CategoryProductsModel.TotalPages, 2)     // Data updated
+		_, ok := m.CurrentView.(categoryproducts.Model)
+		is.True(ok) // Corrected type assertion
+	})
+
+	t.Run("should create new CategoryProductsModel on ProductsForCategoryResponseMsg for a new category", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+
+		// Setup initial state: in CategoryProductsView for "Old Cat"
+		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 111, CategoryName: "Old Cat", APIEndpoint: "old/ep"})
+		m = updatedModel.(hopt.MainModel)
+		updatedModel, _ = m.Update(commands.ProductsForCategoryResponseMsg{
+			CategoryID: 111, CategoryName: "Old Cat", APIEndpoint: "old/ep",
+			Products: &commands.Products{{ID: 1}}, TotalItems: 5, TotalPages: 1,
+		})
+		m = updatedModel.(hopt.MainModel)
+		is.Equal(m.CategoryProductsModel.CategoryID(), 111) // Pre-condition check, use getter
+
+		initialPreviousViewsLen := len(m.PreviousViews)
+
+		// Action: Dispatch response for a *different* category
+		newCategoryProducts := &commands.Products{{ID: 100}}
+		msg := commands.ProductsForCategoryResponseMsg{
+			CategoryID: 999, CategoryName: "New Cat", APIEndpoint: "new/ep",
+			Products: newCategoryProducts, TotalItems: 10, TotalPages: 1, Width: 80, Height: 24,
+		}
+		updatedModel, _ = m.Update(msg)
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.Loading, false)
+		is.Equal(m.State, hopt.CategoryProductsView)
+		is.Equal(m.CategoryProductsModel.CategoryID(), 999)         // Use getter, Verify it's the new model's data
+		is.Equal(m.CategoryProductsModel.CategoryName(), "New Cat") // Use getter
+		is.Equal(len(m.PreviousViews), initialPreviousViewsLen+1)   // Stack should grow
+		_, ok := m.CurrentView.(categoryproducts.Model)
+		is.True(ok) // Corrected type assertion
 	})
 }

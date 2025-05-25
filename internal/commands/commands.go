@@ -3,11 +3,17 @@ package commands
 import (
 	"context"
 	"encoding/json"
+	"fmt" // Added fmt import
 	"net/http"
+	"strconv" // Added strconv import
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+// TheHoptimistBaseURL is the base URL for The Hoptimist API.
+// It's a variable so it can be overridden for testing.
+var TheHoptimistBaseURL = "https://thehoptimist.co.uk"
 
 type (
 	Product struct {
@@ -22,10 +28,12 @@ type (
 	}
 	Products          []Product
 	LatestResponseMsg struct {
-		Products *Products
-		Width    int
-		Height   int
-		Err      error
+		Products   *Products
+		Width      int
+		Height     int
+		TotalItems int // New
+		TotalPages int // New
+		Err        error
 	}
 	ProductsMsg struct {
 		Product *Product
@@ -34,6 +42,21 @@ type (
 		Err     error
 	}
 )
+
+// LoadLatestPageMsg is a message to indicate that a specific page of latest items should be loaded.
+type LoadLatestPageMsg struct {
+	Page    int
+	PerPage int
+}
+
+// LoadCategoryProductsPageMsg is a message to indicate that a specific page of products for a category should be loaded.
+type LoadCategoryProductsPageMsg struct {
+	CategoryID   int
+	CategoryName string
+	APIEndpoint  string // The specific API endpoint for fetching this category's products
+	Page         int
+	PerPage      int
+}
 
 // Category models a product category from the WordPress API.
 type Category struct {
@@ -63,8 +86,11 @@ type ProductsForCategoryResponseMsg struct {
 	Products     *Products
 	CategoryName string
 	CategoryID   int
+	APIEndpoint  string // New: To carry over the API endpoint
 	Width        int
 	Height       int
+	TotalItems   int // New
+	TotalPages   int // New
 	Err          error
 }
 
@@ -76,11 +102,19 @@ type StartLoadingProductsForCategoryMsg struct {
 	APIEndpoint  string
 	Width        int
 	Height       int
+	Page         int // New for pagination
+	PerPage      int // New for pagination
 }
 
-func HandleGetLatest(w int, h int) tea.Cmd {
+func HandleGetLatest(w int, h int, page int, perPage int) tea.Cmd {
 	return func() tea.Msg {
-		url := "https://thehoptimist.co.uk/wp-json/wp/v2/product?order_by=date"
+		if page <= 0 {
+			page = 1
+		}
+		if perPage <= 0 {
+			perPage = 10
+		}
+		url := fmt.Sprintf("%s/wp-json/wp/v2/product?orderby=date&page=%d&per_page=%d", TheHoptimistBaseURL, page, perPage)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -98,18 +132,26 @@ func HandleGetLatest(w int, h int) tea.Cmd {
 		}
 		defer res.Body.Close()
 
+		totalItemsStr := res.Header.Get("X-WP-Total")
+		totalPagesStr := res.Header.Get("X-WP-TotalPages")
+		totalItems, _ := strconv.Atoi(totalItemsStr)
+		totalPages, _ := strconv.Atoi(totalPagesStr)
+
 		var products Products
-		err = json.NewDecoder(res.Body).Decode(&products)
-		if err != nil {
+		decodeErr := json.NewDecoder(res.Body).Decode(&products) // Renamed err to decodeErr
+		if decodeErr != nil {
 			return LatestResponseMsg{
-				Err: err,
+				Err: decodeErr, // Use decodeErr here
 			}
 		}
 
 		return LatestResponseMsg{
-			Products: &products,
-			Width:    w,
-			Height:   h,
+			Products:   &products,
+			Width:      w,
+			Height:     h,
+			TotalItems: totalItems,
+			TotalPages: totalPages,
+			// Err should be nil if decodeErr was nil
 		}
 	}
 }
@@ -117,7 +159,7 @@ func HandleGetLatest(w int, h int) tea.Cmd {
 // HandleGetCategories fetches product categories from the API.
 func HandleGetCategories(w int, h int) tea.Cmd {
 	return func() tea.Msg {
-		url := "https://thehoptimist.co.uk/wp-json/wp/v2/product_cat"
+		url := fmt.Sprintf("%s/wp-json/wp/v2/product_cat", TheHoptimistBaseURL)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -145,8 +187,15 @@ func HandleGetCategories(w int, h int) tea.Cmd {
 }
 
 // HandleGetProductsByCategory fetches products for a given category from the API.
-func HandleGetProductsByCategory(w int, h int, categoryID int, categoryName string, apiEndpoint string) tea.Cmd {
+func HandleGetProductsByCategory(w int, h int, categoryID int, categoryName string, apiEndpoint string, page int, perPage int) tea.Cmd {
 	return func() tea.Msg {
+		if page <= 0 {
+			page = 1
+		}
+		if perPage <= 0 {
+			perPage = 10
+		}
+
 		if apiEndpoint == "" {
 			return ProductsForCategoryResponseMsg{
 				Err:          NewError("API endpoint for category is empty"),
@@ -155,9 +204,10 @@ func HandleGetProductsByCategory(w int, h int, categoryID int, categoryName stri
 			}
 		}
 
+		url := fmt.Sprintf("%s&page=%d&per_page=%d", apiEndpoint, page, perPage)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiEndpoint, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return ProductsForCategoryResponseMsg{Err: err, CategoryName: categoryName, CategoryID: categoryID}
 		}
@@ -168,17 +218,26 @@ func HandleGetProductsByCategory(w int, h int, categoryID int, categoryName stri
 		}
 		defer res.Body.Close()
 
+		totalItemsStr := res.Header.Get("X-WP-Total")
+		totalPagesStr := res.Header.Get("X-WP-TotalPages")
+		totalItems, _ := strconv.Atoi(totalItemsStr)
+		totalPages, _ := strconv.Atoi(totalPagesStr)
+
 		var products Products
-		if err := json.NewDecoder(res.Body).Decode(&products); err != nil {
-			return ProductsForCategoryResponseMsg{Err: err, CategoryName: categoryName, CategoryID: categoryID}
+		decodeErr := json.NewDecoder(res.Body).Decode(&products)
+		if decodeErr != nil {
+			return ProductsForCategoryResponseMsg{Err: decodeErr, CategoryName: categoryName, CategoryID: categoryID}
 		}
 
 		return ProductsForCategoryResponseMsg{
 			Products:     &products,
 			CategoryName: categoryName,
 			CategoryID:   categoryID,
+			APIEndpoint:  apiEndpoint, // Populate the APIEndpoint
 			Width:        w,
 			Height:       h,
+			TotalItems:   totalItems,
+			TotalPages:   totalPages,
 		}
 	}
 }

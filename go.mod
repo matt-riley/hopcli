@@ -6,12 +6,10 @@ toolchain go1.24.3
 
 require (
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0
-	github.com/JohannesKaufmann/html-to-markdown/v2 v2.3.3
 	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v1.3.5
 	github.com/charmbracelet/glamour v0.10.0
 	github.com/charmbracelet/lipgloss v1.1.1-0.20250404203927-76690c660834
-	github.com/charmbracelet/lipgloss/v2 v2.0.0-beta.1
 	github.com/matryer/is v1.4.1
 )
 

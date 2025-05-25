@@ -6,6 +6,7 @@ Output assets/demo.gif
 Set Shell "bash"
 Set TypingSpeed 100ms
 Set PlaybackSpeed 1
+Set Height 800
 
 # Start the application
 Type "./hopcli" Enter

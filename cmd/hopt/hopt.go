@@ -265,7 +265,9 @@ func (mm MainModel) View() string {
 		errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Width(mm.Width).Align(lipgloss.Center)
 		errorMessage := errorStyle.Render("Error: " + mm.ErrMsg)
 		errorViewHeight := mm.Height - lipgloss.Height(styledFooter)
-		if errorViewHeight < 0 {errorViewHeight = 0}
+		if errorViewHeight < 0 {
+			errorViewHeight = 0
+		}
 		centeredError := lipgloss.Place(mm.Width, errorViewHeight, lipgloss.Center, lipgloss.Center, errorMessage)
 		return lipgloss.JoinVertical(lipgloss.Left, centeredError, styledFooter)
 	}

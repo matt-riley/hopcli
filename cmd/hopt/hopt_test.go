@@ -47,7 +47,9 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		updatedModel, _ := m.Update(defaultview.StartLoadingLatestMsg{}) // Start loading
 		m = updatedModel.(hopt.MainModel)
 
-		products := &commands.Products{{ID: 1, Title: struct{ Rendered string `json:"rendered"` }{Rendered: "Test Beer"}}}
+		products := &commands.Products{{ID: 1, Title: struct {
+			Rendered string `json:"rendered"`
+		}{Rendered: "Test Beer"}}}
 		msg := commands.LatestResponseMsg{Products: products, Width: 80, Height: 24}
 		updatedModel, _ = m.Update(msg)
 		m = updatedModel.(hopt.MainModel)
@@ -61,7 +63,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 	t.Run("should set error message on LatestResponseMsg failure", func(t *testing.T) {
 		is := is.New(t)
 		m := hopt.InitialModel()
-		originalState := m.State // Store original state before loading
+		originalState := m.State                                         // Store original state before loading
 		updatedModel, _ := m.Update(defaultview.StartLoadingLatestMsg{}) // Start loading
 		m = updatedModel.(hopt.MainModel)
 
@@ -141,7 +143,9 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 1, CategoryName: "Test", APIEndpoint: "some/api", Width: 80, Height: 24})
 		m = updatedModel.(hopt.MainModel)
 
-		products := &commands.Products{{ID: 1, Title: struct{ Rendered string `json:"rendered"` }{Rendered: "Test Beer in Category"}}}
+		products := &commands.Products{{ID: 1, Title: struct {
+			Rendered string `json:"rendered"`
+		}{Rendered: "Test Beer in Category"}}}
 		msg := commands.ProductsForCategoryResponseMsg{Products: products, CategoryID: 1, CategoryName: "Test", Width: 80, Height: 24}
 		updatedModel, _ = m.Update(msg)
 		m = updatedModel.(hopt.MainModel)

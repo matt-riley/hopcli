@@ -81,10 +81,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					sentences := strings.Split(fullDesc, ".")
 					shortDesc = sentences[0]
 					if len(sentences) > 1 { // Add ellipsis if there was more than one sentence
-						shortDesc += "." 
+						shortDesc += "."
 					}
 				}
-				
+
 				if len(shortDesc) > 100 { // Arbitrary length limit for display
 					shortDesc = shortDesc[:100] + "..."
 				}

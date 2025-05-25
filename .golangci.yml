@@ -1,16 +1,5 @@
+version: "2"
 linters:
-  disable-all: true
-  enable:
-    - thelper
-    - gofumpt
-    - tparallel
-    - unconvert
-    - unparam
-    - wastedassign
+  default: fast
 output:
-  print-issued-lines: true
-  print-linter-name: true
   show-stats: false
-  sort-results: true
-  formats:
-  - format: colored-line-number

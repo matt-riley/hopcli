@@ -24,17 +24,13 @@ jobs:
         run: go build -o hopcli ./cmd/hopt 
         # This creates 'hopcli' executable in the root
 
-      - name: Set up VHS
-        uses: υψηλός/setup-vhs@v1 # Pronounced "ypsilos/setup-vhs"
-        with:
-          version: latest # Or a specific VHS version
-
       - name: Create assets directory
         run: mkdir -p assets # Ensures the output directory for VHS exists
 
-      - name: Run VHS to generate GIF
-        run: vhs tapes/demo.tape 
-        # Assumes demo.tape contains "Output assets/demo.gif"
+      - name: Generate GIF with VHS Action
+        uses: charmbracelet/vhs-action@v1
+        with:
+          path: 'tapes/demo.tape'
 
       - name: Commit and push demo.gif
         uses: stefanzweifel/git-auto-commit-action@v5

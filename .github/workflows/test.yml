@@ -1,0 +1,37 @@
+name: Run Go Tests
+
+on:
+  push:
+    branches:
+      - main # Or 'master' if that is your main branch
+  pull_request:
+    branches:
+      - main # Or 'master'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Check formatting
+        run: |
+          gofmt_output=$(go fmt ./...)
+          if [ -n "$gofmt_output" ]; then
+            echo "Go files are not formatted:"
+            echo "$gofmt_output"
+            exit 1
+          fi
+          echo "All Go files are correctly formatted."
+
+      - name: Vet code
+        run: go vet ./...
+
+      - name: Run tests
+        run: go test ./...

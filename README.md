@@ -6,3 +6,7 @@ This is an **UNOFFICIAL** TUI for interacting with [The Hoptimist](https://theho
 
 - Display the latest 10 items added to the store
 - Look through the various categories
+
+## Demo
+
+![Hoptimist CLI Demo](assets/demo.gif)

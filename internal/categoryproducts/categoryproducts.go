@@ -2,16 +2,28 @@ package categoryproducts
 
 import (
 	"fmt"
+	"html"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/matt-riley/hopcli/internal/commands"
-	"github.com/matt-riley/hopcli/internal/ui" // Assuming 'ui' package for ListItem or define here
 )
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
+
+// CategoryProductListItem defines a list item for products within a category.
+type CategoryProductListItem struct {
+	title       string
+	description string
+	productData commands.Product
+}
+
+func (i CategoryProductListItem) Title() string       { return i.title }
+func (i CategoryProductListItem) Description() string { return i.description }
+func (i CategoryProductListItem) FilterValue() string { return i.title }
 
 type Model struct {
 	list         list.Model
@@ -34,7 +46,7 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
@@ -59,10 +71,28 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		items := []list.Item{}
 		if m.products != nil {
 			for _, prod := range *m.products {
-				items = append(items, ui.ListItem{ // Assuming ui.ListItem is suitable
-					TitleField: prod.Title.Rendered,
-					DescField:  prod.Description.Rendered, // Or however you want to display it
-					ProductData: prod, // Store the full product data
+				unescapedTitle := html.UnescapeString(prod.Title.Rendered)
+				// Create a short description, ensuring HTML is unescaped first
+				fullDesc := html.UnescapeString(prod.Description.Rendered)
+				var shortDesc string
+				if len(fullDesc) > 0 {
+					// Attempt to split by sentences, take the first.
+					// This is a simple approach; more robust HTML to plain text conversion might be needed.
+					sentences := strings.Split(fullDesc, ".")
+					shortDesc = sentences[0]
+					if len(sentences) > 1 { // Add ellipsis if there was more than one sentence
+						shortDesc += "." 
+					}
+				}
+				
+				if len(shortDesc) > 100 { // Arbitrary length limit for display
+					shortDesc = shortDesc[:100] + "..."
+				}
+
+				items = append(items, CategoryProductListItem{
+					title:       unescapedTitle,
+					description: shortDesc,
+					productData: prod,
 				})
 			}
 		}
@@ -76,10 +106,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "enter":
-			selectedItem, ok := m.list.SelectedItem().(ui.ListItem)
+			selectedItem, ok := m.list.SelectedItem().(CategoryProductListItem)
 			if ok {
 				// Trigger displaying the product details
-				return m, commands.HandleDisplayProduct(m.width, m.height, selectedItem.ProductData)
+				return m, commands.HandleDisplayProduct(m.width, m.height, selectedItem.productData)
 			}
 		}
 	}

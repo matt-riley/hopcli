@@ -22,9 +22,9 @@ func (i CategoryListItem) Description() string { return "Slug: " + i.Slug }
 func (i CategoryListItem) FilterValue() string { return i.Name }
 
 type Model struct {
-	list         list.Model
-	width        int
-	height       int
+	list             list.Model
+	width            int
+	height           int
 	selectedCategory CategoryListItem
 }
 
@@ -38,7 +38,7 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
@@ -74,7 +74,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.list.SetItems(items)
 		m.list.Title = "Browse Categories"
 		m.list.SetShowStatusBar(true)
-		m.list.SetFilteringEnabled(false) // Can enable if needed
+		m.list.SetFilteringEnabled(false)                                                                   // Can enable if needed
 		m.list.SetSize(m.width-docStyle.GetHorizontalFrameSize(), m.height-docStyle.GetVerticalFrameSize()) // Recalculate size based on current width/height
 		return m, nil
 

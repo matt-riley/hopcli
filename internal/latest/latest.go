@@ -1,9 +1,7 @@
 package latest
 
 import (
-	"fmt"
 	"html"
-	"os"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"

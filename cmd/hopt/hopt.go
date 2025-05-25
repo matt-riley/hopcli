@@ -72,41 +72,53 @@ func InitialModel() MainModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
 	dm := defaultview.InitialModel()
+	lm := latest.NewLatestModel()
+	cm := categories.NewCategoriesModel()
+	// For cpm, categoryName and categoryID will be updated when a category is chosen.
+	// Initialize with placeholder values.
+	cpm := categoryproducts.NewModel("", 0)
+	pm := productview.NewProductModel()
+
 	return MainModel{
-		State:         DefaultView,
-		CurrentView:   dm,
-		DefaultModel:  dm,
-		PreviousViews: []tea.Model{},
-		Loading:       false,
-		Spinner:       s,
+		State:                 DefaultView,
+		CurrentView:           dm,
+		DefaultModel:          dm,
+		LatestModel:           lm,
+		CategoriesModel:       cm,
+		CategoryProductsModel: cpm,
+		ProductModel:          pm,
+		PreviousViews:         []tea.Model{},
+		Loading:               false,
+		Spinner:               s,
+		// Width and Height will be set by tea.WindowSizeMsg
 	}
 }
 
 func (mm MainModel) Init() tea.Cmd {
-	return mm.spinner.Tick
+	return mm.Spinner.Tick
 }
 
 func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
+	var updatedViewModel tea.Model
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		mm.width = msg.Width
-		mm.height = msg.Height
+		mm.Width = msg.Width
+		mm.Height = msg.Height
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q":
 			return mm, tea.Quit
 		case "h", "left":
 			if len(mm.PreviousViews) > 0 {
-				// Pop the last view from the stack
 				lastViewIndex := len(mm.PreviousViews) - 1
 				mm.CurrentView = mm.PreviousViews[lastViewIndex]
 				mm.PreviousViews = mm.PreviousViews[:lastViewIndex]
 
-				// Determine the correct state based on the type of the new CurrentView
 				switch mm.CurrentView.(type) {
 				case defaultview.DefaultModel:
 					mm.State = DefaultView
@@ -119,7 +131,7 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case productview.ProductModel:
 					mm.State = ProductView
 				}
-				mm.ErrMsg = "" // Clear any previous error messages
+				mm.ErrMsg = ""
 			}
 		}
 	case defaultview.StartLoadingLatestMsg:
@@ -136,10 +148,9 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		mm.Loading = false
 		if msg.Err != nil {
 			mm.ErrMsg = msg.Err.Error()
-			// Don't switch view, CurrentView.Update will handle the error msg if needed
 		} else {
-			mm.LatestModel = latest.NewLatestModel() // Create a new model
-			mm.LatestModel, cmd = mm.LatestModel.Update(msg)
+			updatedViewModel, cmd = mm.LatestModel.Update(msg)
+			mm.LatestModel = updatedViewModel.(latest.LatestModel)
 			cmds = append(cmds, cmd)
 			mm.PreviousViews = append(mm.PreviousViews, mm.CurrentView)
 			mm.CurrentView = mm.LatestModel
@@ -152,8 +163,8 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Err != nil {
 			mm.ErrMsg = msg.Err.Error()
 		} else {
-			mm.CategoriesModel = categories.NewCategoriesModel()
-			mm.CategoriesModel, cmd = mm.CategoriesModel.Update(msg) // Pass the full message
+			updatedViewModel, cmd = mm.CategoriesModel.Update(msg)
+			mm.CategoriesModel = updatedViewModel.(categories.Model)
 			cmds = append(cmds, cmd)
 			mm.PreviousViews = append(mm.PreviousViews, mm.CurrentView)
 			mm.CurrentView = mm.CategoriesModel
@@ -171,8 +182,11 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Err != nil {
 			mm.ErrMsg = msg.Err.Error()
 		} else {
+			// CategoryProductsModel is typically created new each time, so no zero check needed here.
+			// It's initialized directly.
 			mm.CategoryProductsModel = categoryproducts.NewModel(msg.CategoryName, msg.CategoryID)
-			mm.CategoryProductsModel, cmd = mm.CategoryProductsModel.Update(msg) // Pass the full message
+			updatedViewModel, cmd = mm.CategoryProductsModel.Update(msg)
+			mm.CategoryProductsModel = updatedViewModel.(categoryproducts.Model)
 			cmds = append(cmds, cmd)
 			mm.PreviousViews = append(mm.PreviousViews, mm.CurrentView)
 			mm.CurrentView = mm.CategoryProductsModel
@@ -181,12 +195,12 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case commands.ProductsMsg: // This is for displaying a single product
-		mm.Loading = false // Ensure loading is false if we came from a loading state
+		mm.Loading = false
 		if msg.Err != nil {
 			mm.ErrMsg = msg.Err.Error()
 		} else {
-			mm.ProductModel = productview.NewProductModel()
-			mm.ProductModel, cmd = mm.ProductModel.Update(msg) // Pass the full message
+			updatedViewModel, cmd = mm.ProductModel.Update(msg)
+			mm.ProductModel = updatedViewModel.(productview.ProductModel)
 			cmds = append(cmds, cmd)
 			mm.PreviousViews = append(mm.PreviousViews, mm.CurrentView)
 			mm.CurrentView = mm.ProductModel
@@ -218,13 +232,13 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-
 	return mm, tea.Batch(cmds...)
 }
 
 func (mm MainModel) View() string {
-	var viewContent string
+	// var mainViewContent string // Removed as it was declared and not used before re-assignment
 	var helpContent string
+
 	switch mm.State {
 	case DefaultView:
 		helpContent = "↑/↓: navigate | enter: select | q: quit"
@@ -236,34 +250,26 @@ func (mm MainModel) View() string {
 		helpContent = "q: quit"
 	}
 
-	// Special help content if there's an error message
 	if mm.ErrMsg != "" {
-		helpContent = "h/←: back | q: quit" // Or just "q: quit" if back isn't always applicable
+		helpContent = "h/←: back | q: quit"
 	}
 
 	footerStyle := lipgloss.NewStyle().
-		Border(lipgloss.NormalBorder(), true, false, false, false). // Top border
+		Border(lipgloss.NormalBorder(), true, false, false, false).
 		PaddingTop(1).
 		Foreground(lipgloss.Color("240"))
 
-	styledFooter := footerStyle.Width(mm.Width).Render(helpContent) // Ensure footer spans width
+	styledFooter := footerStyle.Width(mm.Width).Render(helpContent)
 
-	var viewContent string
 	if mm.ErrMsg != "" {
-		// Centered error message
 		errorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF0000")).Width(mm.Width).Align(lipgloss.Center)
 		errorMessage := errorStyle.Render("Error: " + mm.ErrMsg)
-		// Error view takes up available space, footer below it
-		// Calculate height for error message area, leave space for footer
 		errorViewHeight := mm.Height - lipgloss.Height(styledFooter)
-		if errorViewHeight < 0 {
-			errorViewHeight = 0
-		}
+		if errorViewHeight < 0 {errorViewHeight = 0}
 		centeredError := lipgloss.Place(mm.Width, errorViewHeight, lipgloss.Center, lipgloss.Center, errorMessage)
 		return lipgloss.JoinVertical(lipgloss.Left, centeredError, styledFooter)
 	}
 
-	// If loading, show spinner and logo, then footer
 	if mm.Loading {
 		loadingViewContent := lipgloss.JoinVertical(
 			lipgloss.Center,
@@ -282,7 +288,7 @@ func (mm MainModel) View() string {
 
 	// If not loading and no error, show the current view with logo and footer
 	currentViewRender := mm.CurrentView.View()
-	
+
 	// Calculate available height for the main content (logo + current view)
 	mainContentHeight := mm.Height - lipgloss.Height(styledFooter)
 	if mainContentHeight < 0 {
@@ -298,7 +304,7 @@ func (mm MainModel) View() string {
 	// For now, we'll join them and then join with the footer.
 
 	finalLayout := lipgloss.JoinVertical(lipgloss.Left, logoAndCurrentView, styledFooter)
-	
+
 	// If the total height is still too much, we might need to Place the main content area.
 	// However, JoinVertical doesn't inherently know about mm.Height to constrain itself.
 	// Let's try to ensure the main interactive area (currentViewRender) is what gets space.

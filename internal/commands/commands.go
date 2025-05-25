@@ -37,9 +37,9 @@ type (
 
 // Category models a product category from the WordPress API.
 type Category struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-	Slug string `json:"slug"`
+	ID    int    `json:"id"`
+	Name  string `json:"name"`
+	Slug  string `json:"slug"`
 	Links struct {
 		WpPostType []struct {
 			Href string `json:"href"`

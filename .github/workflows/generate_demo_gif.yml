@@ -19,13 +19,11 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.24' # Or your project's Go version
-      - name: Cache APT Packages
-        uses: awalsh128/cache-apt-pkgs-action@v1.4.3
-        with:
-          packages: ffmpeg ttyd
+
       - name: Build CLI
         run: go build -o hopcli ./main.go 
         # This creates 'hopcli' executable in the root
+
       - name: Make it executeable
         run: chmod +x hopcli
 
@@ -34,6 +32,8 @@ jobs:
 
       - name: Generate GIF with VHS Action
         run: |
+          sudo apt update
+          sudo apt install -y ffmpeg ttyd
           go install github.com/charmbracelet/vhs@latest
           vhs tapes/demo.tape
       - name: Commit and push demo.gif

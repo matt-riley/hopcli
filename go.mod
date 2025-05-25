@@ -2,7 +2,7 @@ module github.com/matt-riley/hopcli
 
 go 1.23.0
 
-toolchain go1.23.9
+toolchain go1.24.3
 
 require (
 	github.com/JohannesKaufmann/html-to-markdown v1.6.0

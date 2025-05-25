@@ -1,6 +1,8 @@
 package categories
 
 import (
+	"fmt"
+
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -52,8 +54,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case commands.CategoriesResponseMsg:
 		if msg.Err != nil {
-			// Handle error, maybe return an error message to display
-			// For now, just log or ignore
 			return m, nil
 		}
 		items := []list.Item{}
@@ -71,6 +71,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				})
 			}
 		}
+		fmt.Println(items)
 		m.List.SetItems(items)                                                                              // Use exported field
 		m.List.Title = "Browse Categories"                                                                  // Use exported field
 		m.List.SetShowStatusBar(true)                                                                       // Use exported field

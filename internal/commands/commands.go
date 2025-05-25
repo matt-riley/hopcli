@@ -31,8 +31,8 @@ type (
 		Products   *Products
 		Width      int
 		Height     int
-		TotalItems int // New
-		TotalPages int // New
+		TotalItems int
+		TotalPages int
 		Err        error
 	}
 	ProductsMsg struct {

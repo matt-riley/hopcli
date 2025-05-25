@@ -81,7 +81,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.products = msg.Products // Store products
 		m.TotalItems = msg.TotalItems
 		m.TotalPages = msg.TotalPages
-		// m.CurrentPage is implicitly correct as this response is for the current page request
 
 		items := []list.Item{}
 		if m.products != nil {
@@ -111,9 +110,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				})
 			}
 		}
-		m.List.SetItems(items) // Use exported field
-		// Title is set in View()
-		// m.List.SetShowStatusBar(true) // Already set in NewModel
+		m.List.SetItems(items)                                                                              // Use exported field
 		m.List.SetFilteringEnabled(false)                                                                   // Use exported field
 		m.List.SetSize(m.width-docStyle.GetHorizontalFrameSize(), m.height-docStyle.GetVerticalFrameSize()) // Use exported field
 

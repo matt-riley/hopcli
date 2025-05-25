@@ -3,6 +3,7 @@ package hopt_test
 import (
 	"errors"
 	"fmt"
+	"reflect" // Added reflect import
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -11,11 +12,6 @@ import (
 	"github.com/matt-riley/hopcli/cmd/hopt"
 	"github.com/matt-riley/hopcli/internal/commands"
 	"github.com/matt-riley/hopcli/internal/default"
-	// Import other necessary internal packages if their types are directly used in MainModel fields
-	// "github.com/matt-riley/hopcli/internal/latest"
-	// "github.com/matt-riley/hopcli/internal/categories"
-	// "github.com/matt-riley/hopcli/internal/categoryproducts"
-	// "github.com/matt-riley/hopcli/internal/product"
 )
 
 func TestInitialModel(t *testing.T) {
@@ -29,7 +25,6 @@ func TestInitialModel(t *testing.T) {
 }
 
 func TestMainModelUpdate_StateTransitions(t *testing.T) {
-	// is := is.New(t) // is is created per sub-test
 
 	t.Run("should transition to loading on StartLoadingLatestMsg", func(t *testing.T) {
 		is := is.New(t)
@@ -47,9 +42,15 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		updatedModel, _ := m.Update(defaultview.StartLoadingLatestMsg{}) // Start loading
 		m = updatedModel.(hopt.MainModel)
 
-		products := &commands.Products{{ID: 1, Title: struct {
-			Rendered string `json:"rendered"`
-		}{Rendered: "Test Beer"}}}
+		products := &commands.Products{{
+			ID: 1,
+			Title: struct {
+				Rendered string `json:"rendered"`
+			}{Rendered: "Test Beer"},
+			Description: struct {
+				Rendered string `json:"rendered"`
+			}{Rendered: "%%%A tasty sample beer description."},
+		}}
 		msg := commands.LatestResponseMsg{Products: products, Width: 80, Height: 24}
 		updatedModel, _ = m.Update(msg)
 		m = updatedModel.(hopt.MainModel)
@@ -126,7 +127,6 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		m := hopt.InitialModel()
 		// Simulate being in categories view first
 		m.State = hopt.CategoriesView // Access exported field
-		// m.CurrentView = categories.NewCategoriesModel() // Assuming this setup is covered by CategoriesResponseMsg test
 
 		msg := commands.StartLoadingProductsForCategoryMsg{CategoryID: 1, CategoryName: "Test", APIEndpoint: "some/api", Width: 80, Height: 24}
 		updatedModel, cmd := m.Update(msg)
@@ -178,7 +178,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		is := is.New(t)
 		m := hopt.InitialModel()
 		_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
-		is.Equal(cmd, tea.Quit)
+		is.True(reflect.ValueOf(cmd).Pointer() == reflect.ValueOf(tea.Quit).Pointer())
 	})
 
 	t.Run("should navigate back on 'h' key when previous view exists", func(t *testing.T) {

@@ -68,10 +68,23 @@ func (lm LatestModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var items []list.Item
 		for _, product := range *msg.Products {
 			unescapedTitle := html.UnescapeString(product.Title.Rendered)
-			title := unescapedTitle
-			brewery := title
-			desc := strings.SplitAfter(html.UnescapeString(product.Description.Rendered), "%")
-			items = append(items, LatestListItem{title: title, desc: desc[0][3:], brewery: brewery})
+			brewery := unescapedTitle // Assuming brewery is derived from title for now
+
+			processedDesc := html.UnescapeString(product.Description.Rendered)
+			if strings.HasPrefix(processedDesc, "%%%") {
+				processedDesc = processedDesc[3:]
+			} else if strings.HasPrefix(processedDesc, "%%") { // Handle cases with "%%"
+				processedDesc = processedDesc[2:]
+			} else if strings.HasPrefix(processedDesc, "%") { // Handle cases with "%"
+				processedDesc = processedDesc[1:]
+			}
+
+			// Optional: Truncate if too long, even after stripping prefixes
+			if len(processedDesc) > 150 { // Example max length for description
+				processedDesc = processedDesc[:150] + "..."
+			}
+
+			items = append(items, LatestListItem{title: unescapedTitle, desc: processedDesc, brewery: brewery})
 		}
 		lm.choices.SetSize(msg.Width, msg.Height)
 		lm.choices.SetItems(items)

@@ -51,9 +51,19 @@ func (lm LatestModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return lm, commands.HandleDisplayProduct(lm.choices.Width(), lm.choices.Height(), (*lm.products)[lm.choices.Cursor()])
 		}
 	case commands.LatestResponseMsg:
-		if msg.Err != nil {
-			fmt.Printf("Error: %s", msg.Err.Error())
-			os.Exit(1)
+		// Error handling is now done in MainModel. If msg.Err was not nil,
+		// MainModel would have set its errMsg and this model's Update
+		// might not even be called or its view won't be rendered.
+		// We can proceed assuming msg.Err is nil here, or MainModel has handled it.
+
+		// If msg.Err is not nil, and MainModel decided to still call this Update,
+		// it's important not to panic. msg.Products could be nil.
+		if msg.Products == nil {
+			// This case should ideally be prevented by MainModel if msg.Err was not nil.
+			// If it still happens, we should not proceed to dereference msg.Products.
+			// We can return the model as is, or set an internal error state if LatestModel needs it.
+			// For now, just return, as MainModel's errMsg should be showing.
+			return lm, cmd // cmd might be nil here, which is fine
 		}
 
 		lm.products = msg.Products

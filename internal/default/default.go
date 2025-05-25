@@ -10,7 +10,14 @@ import (
 
 const (
 	latest = iota
+	categories
 )
+
+// StartLoadingLatestMsg is a message to indicate that the latest items should be loaded.
+type StartLoadingLatestMsg struct{}
+
+// StartLoadingCategoriesMsg is a message to indicate that the categories should be loaded.
+type StartLoadingCategoriesMsg struct{}
 
 type DefaultModel struct {
 	choices list.Model
@@ -28,6 +35,7 @@ func (i ListItem) FilterValue() string { return i.title }
 func InitialModel() DefaultModel {
 	items := []list.Item{
 		ListItem{title: "Latest", desc: "Latest items added"},
+		ListItem{title: "Categories", desc: "Browse by category"},
 	}
 
 	return DefaultModel{
@@ -50,7 +58,9 @@ func (dm DefaultModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			switch dm.choices.Index() {
 			case latest:
-				return dm, commands.HandleGetLatest(dm.choices.Width(), dm.choices.Height())
+				return dm, func() tea.Msg { return StartLoadingLatestMsg{} }
+			case categories:
+				return dm, func() tea.Msg { return StartLoadingCategoriesMsg{} }
 			}
 		}
 

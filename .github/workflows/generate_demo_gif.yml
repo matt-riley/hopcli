@@ -28,10 +28,11 @@ jobs:
         run: mkdir -p assets # Ensures the output directory for VHS exists
 
       - name: Generate GIF with VHS Action
-        uses: charmbracelet/vhs-action@v2
-        with:
-          path: 'tapes/demo.tape'
-
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg ttyd
+          go install github.com/charmbracelet/vhs@latest
+          vhs tapes/demo.tape
       - name: Commit and push demo.gif
         uses: stefanzweifel/git-auto-commit-action@v5
         with:

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode"
 
-	md "github.com/JohannesKaufmann/html-to-markdown"
+	md "github.com/JohannesKaufmann/html-to-markdown/v2"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 
@@ -40,8 +40,7 @@ func (pm ProductModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Err != nil {
 			return pm, nil
 		}
-		converter := md.NewConverter("", true, nil)
-		md, err := converter.ConvertString(msg.Product.Description.Rendered)
+		md, err := md.ConvertString(msg.Product.Description.Rendered)
 		if err != nil {
 			return pm, nil
 		}

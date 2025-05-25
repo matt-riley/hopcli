@@ -23,6 +23,8 @@ jobs:
       - name: Build CLI
         run: go build -o hopcli ./cmd/hopt 
         # This creates 'hopcli' executable in the root
+      - name: Make it executeable
+        run: chmod +x hopcli
 
       - name: Create assets directory
         run: mkdir -p assets # Ensures the output directory for VHS exists

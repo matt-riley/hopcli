@@ -1,6 +1,6 @@
 # Hoptimist CLI Demo Tape
 
-Output assets/demo.webm
+Output assets/demo.gif
 
 # Set up shell and speed
 Set Shell "bash"

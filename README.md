@@ -9,5 +9,5 @@ This is an **UNOFFICIAL** TUI for interacting with [The Hoptimist](https://theho
 
 ## Demo
 
-![Hoptimist CLI Demo](assets/demo.webm)
+![Hoptimist CLI Demo](assets/demo.gif)
 

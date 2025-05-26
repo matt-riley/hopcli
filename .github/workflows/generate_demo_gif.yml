@@ -39,8 +39,8 @@ jobs:
       - name: Commit and push demo.webm
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "docs: Update demo.webm"
-          file_pattern: "assets/demo.webm" # Only commit if this file changes
+          commit_message: "docs: Update demo.gif"
+          file_pattern: "assets/demo.gif" # Only commit if this file changes
           commit_user_name: "github-actions[bot]"
           commit_user_email: "github-actions[bot]@users.noreply.github.com"
           commit_author: "github-actions[bot] <github-actions[bot]@users.noreply.github.com>"

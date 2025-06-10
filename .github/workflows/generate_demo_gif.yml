@@ -37,7 +37,7 @@ jobs:
           go install github.com/charmbracelet/vhs@latest
           vhs tapes/demo.tape
       - name: Commit and push demo.webm
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v6
         with:
           commit_message: "docs: Update demo.gif"
           file_pattern: "assets/demo.gif" # Only commit if this file changes

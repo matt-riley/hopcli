@@ -3,8 +3,8 @@ package categoryproducts_test
 import (
 	"testing"
 
-	// list "github.com/charmbracelet/bubbles/list" // Not directly used for assertions
-	tea "github.com/charmbracelet/bubbletea"
+	// list "charm.land/bubbles/v2/list" // Not directly used for assertions
+	tea "charm.land/bubbletea/v2"
 	"github.com/matryer/is"
 
 	"github.com/matt-riley/hopcli/internal/categoryproducts"
@@ -74,7 +74,7 @@ func TestCategoryProductsModel_Update_PageNavigation(t *testing.T) {
 	t.Run("next page", func(t *testing.T) {
 		is := is.New(t)
 		model := baseModel // Use baseModel as starting point for this sub-test
-		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+		updatedModel, cmd := model.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
 		cpm := updatedModel.(categoryproducts.Model)
 
 		is.Equal(cpm.CurrentPage, 3)
@@ -91,14 +91,14 @@ func TestCategoryProductsModel_Update_PageNavigation(t *testing.T) {
 		is := is.New(t)
 		lastPageModel := baseModel
 		lastPageModel.CurrentPage = 3 // Explicitly set to last page
-		_, cmd := lastPageModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+		_, cmd := lastPageModel.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
 		is.True(cmd == nil)
 	})
 
 	t.Run("previous page", func(t *testing.T) {
 		is := is.New(t)
 		model := baseModel // model starts at CurrentPage=2
-		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+		updatedModel, cmd := model.Update(tea.KeyPressMsg{Code: 'p', Text: "p"})
 		cpm := updatedModel.(categoryproducts.Model)
 
 		is.Equal(cpm.CurrentPage, 1)
@@ -115,7 +115,7 @@ func TestCategoryProductsModel_Update_PageNavigation(t *testing.T) {
 		is := is.New(t)
 		firstPageModel := baseModel
 		firstPageModel.CurrentPage = 1 // Explicitly set to first page
-		_, cmd := firstPageModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+		_, cmd := firstPageModel.Update(tea.KeyPressMsg{Code: 'p', Text: "p"})
 		is.True(cmd == nil)
 	})
 }

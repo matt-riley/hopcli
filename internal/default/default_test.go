@@ -5,8 +5,8 @@ import (
 	"reflect" // Added reflect import
 	"testing"
 
-	// "github.com/charmbracelet/bubbles/list" // Not directly used for assertions
-	tea "github.com/charmbracelet/bubbletea"
+	// "charm.land/bubbles/v2/list" // Not directly used for assertions
+	tea "charm.land/bubbletea/v2"
 	"github.com/matryer/is"
 
 	"github.com/matt-riley/hopcli/internal/default" // To use defaultview.InitialModel, defaultview.DefaultModel, etc.
@@ -50,7 +50,7 @@ func TestDefaultUpdate_EnterKey(t *testing.T) {
 		// For this model, simply selecting is fine as it doesn't change internal state beyond list selection
 		m := defaultview.InitialModel() // Use a fresh model for each sub-test for isolation
 		m.Choices.Select(0)             // Select "Latest"
-		_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 		is.True(cmd != nil)
 		msg := cmd()
 		_, ok := msg.(defaultview.StartLoadingLatestMsg)
@@ -61,7 +61,7 @@ func TestDefaultUpdate_EnterKey(t *testing.T) {
 		is := is.New(t)                 // is for the sub-test
 		m := defaultview.InitialModel() // Use a fresh model
 		m.Choices.Select(1)             // Select "Categories"
-		_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 		is.True(cmd != nil)
 		msg := cmd()
 		_, ok := msg.(defaultview.StartLoadingCategoriesMsg)
@@ -73,12 +73,12 @@ func TestDefaultUpdate_QuitKeys(t *testing.T) {
 	// model := defaultview.InitialModel() // This outer model is not used if sub-tests create their own.
 	quitKeys := []struct {
 		name   string
-		keyMsg tea.KeyMsg
+		keyMsg tea.KeyPressMsg
 		// keyStr string // keyStr was not used
 	}{
-		{"q", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}},
-		{"esc", tea.KeyMsg{Type: tea.KeyEscape}},
-		{"ctrl+c", tea.KeyMsg{Type: tea.KeyCtrlC}},
+		{"q", tea.KeyPressMsg{Code: 'q', Text: "q"}},
+		{"esc", tea.KeyPressMsg{Code: tea.KeyEscape}},
+		{"ctrl+c", tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}},
 	}
 
 	for _, tt := range quitKeys {

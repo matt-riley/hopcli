@@ -3,8 +3,8 @@ package latest_test
 import (
 	"testing"
 
-	// "github.com/charmbracelet/bubbles/list" // Not directly used for assertions, list.Model is in latest.LatestModel
-	tea "github.com/charmbracelet/bubbletea"
+	// "charm.land/bubbles/v2/list" // Not directly used for assertions, list.Model is in latest.LatestModel
+	tea "charm.land/bubbletea/v2"
 	"github.com/matryer/is"
 
 	"github.com/matt-riley/hopcli/internal/commands"
@@ -61,7 +61,7 @@ func TestLatestModel_Update_PageNavigation(t *testing.T) {
 	t.Run("next page", func(t *testing.T) {
 		is := is.New(t)
 		model := baseModel // Use a copy or the base model if state changes are isolated
-		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+		updatedModel, cmd := model.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
 		lm := updatedModel.(latest.LatestModel)
 
 		is.Equal(lm.CurrentPage, 3)
@@ -75,7 +75,7 @@ func TestLatestModel_Update_PageNavigation(t *testing.T) {
 		is := is.New(t)
 		lastPageModel := baseModel
 		lastPageModel.CurrentPage = 3 // Explicitly set to last page
-		updatedModel, cmd := lastPageModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}})
+		updatedModel, cmd := lastPageModel.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
 		_ = updatedModel.(latest.LatestModel) // Perform assertion to ensure it's the correct type
 
 		is.True(cmd == nil) // Should do nothing
@@ -84,7 +84,7 @@ func TestLatestModel_Update_PageNavigation(t *testing.T) {
 	t.Run("previous page", func(t *testing.T) {
 		is := is.New(t)
 		model := baseModel // model is CurrentPage=2 from initial setup
-		updatedModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+		updatedModel, cmd := model.Update(tea.KeyPressMsg{Code: 'p', Text: "p"})
 		lm := updatedModel.(latest.LatestModel)
 
 		is.Equal(lm.CurrentPage, 1)
@@ -98,7 +98,7 @@ func TestLatestModel_Update_PageNavigation(t *testing.T) {
 		is := is.New(t)
 		firstPageModel := baseModel
 		firstPageModel.CurrentPage = 1 // Explicitly set to first page
-		updatedModel, cmd := firstPageModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}})
+		updatedModel, cmd := firstPageModel.Update(tea.KeyPressMsg{Code: 'p', Text: "p"})
 		_ = updatedModel.(latest.LatestModel) // Perform assertion
 
 		is.True(cmd == nil)

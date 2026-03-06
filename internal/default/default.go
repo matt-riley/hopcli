@@ -1,9 +1,9 @@
 package defaultview
 
 import (
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 const (
@@ -72,9 +72,9 @@ func (dm DefaultModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return dm, cmd
 }
 
-func (dm DefaultModel) View() string {
+func (dm DefaultModel) View() tea.View {
 	dm.Choices.Title = "The Hoptimist"    // Use exported field
 	dm.Choices.SetFilteringEnabled(false) // Use exported field
 	dm.Choices.SetShowStatusBar(false)    // Use exported field
-	return dm.Choices.View()              // Use exported field
+	return tea.NewView(dm.Choices.View()) // Use exported field
 }

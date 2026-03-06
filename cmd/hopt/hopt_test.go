@@ -2,7 +2,6 @@ package hopt_test
 
 import (
 	"errors"
-	"fmt"
 	"reflect" // Added reflect import
 	"testing"
 
@@ -71,7 +70,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		m = updatedModel.(hopt.MainModel)
 
 		errMsgContent := "network error"
-		msg := commands.LatestResponseMsg{Err: fmt.Errorf(errMsgContent)}
+		msg := commands.LatestResponseMsg{Err: errors.New(errMsgContent)}
 		updatedModel, _ = m.Update(msg)
 		m = updatedModel.(hopt.MainModel)
 
@@ -115,7 +114,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		m = updatedModel.(hopt.MainModel)
 
 		errMsgContent := "categories fetch error"
-		msg := commands.CategoriesResponseMsg{Err: fmt.Errorf(errMsgContent)}
+		msg := commands.CategoriesResponseMsg{Err: errors.New(errMsgContent)}
 		updatedModel, _ = m.Update(msg)
 		m = updatedModel.(hopt.MainModel)
 

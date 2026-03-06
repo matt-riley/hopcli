@@ -5,6 +5,10 @@ on:
     branches:
       - main # Or 'master' if that's your primary branch
 
+concurrency:
+  group: generate-demo-gif
+  cancel-in-progress: false
+
 permissions:
   contents: write # Needed to commit the GIF back to the repository
 

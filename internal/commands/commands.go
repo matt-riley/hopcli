@@ -8,7 +8,7 @@ import (
 	"strconv" // Added strconv import
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // TheHoptimistBaseURL is the base URL for The Hoptimist API.

@@ -1,9 +1,9 @@
 package categories
 
 import (
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/matt-riley/hopcli/internal/commands"
 )
@@ -103,11 +103,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	if m.List.Items() == nil || len(m.List.Items()) == 0 { // Use exported field
-		return docStyle.Render("Loading categories...")
+		return tea.NewView(docStyle.Render("Loading categories..."))
 	}
-	return docStyle.Render(m.List.View()) // Use exported field
+	return tea.NewView(docStyle.Render(m.List.View())) // Use exported field
 }
 
 // Helper function to get the selected category if needed by other parts of the app

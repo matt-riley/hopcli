@@ -5,9 +5,9 @@ import (
 	"html"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/matt-riley/hopcli/internal/commands"
 )
@@ -168,9 +168,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	if m.products == nil { // Check if products are loaded yet
-		return docStyle.Render(fmt.Sprintf("Loading products for %s...", m.categoryName))
+		return tea.NewView(docStyle.Render(fmt.Sprintf("Loading products for %s...", m.categoryName)))
 	}
 	if len(m.List.Items()) == 0 && m.TotalItems == 0 { // Check if there are genuinely no items ; Use exported field
 		m.List.Title = fmt.Sprintf("Products in %s (No items found)", m.categoryName) // Use exported field
@@ -180,7 +180,7 @@ func (m Model) View() string {
 			m.List.Title = fmt.Sprintf("Products in %s (Page %d/%d)", m.categoryName, m.CurrentPage, 1) // Use exported field
 		}
 	}
-	return docStyle.Render(m.List.View()) // Use exported field
+	return tea.NewView(docStyle.Render(m.List.View())) // Use exported field
 }
 
 // CategoryID returns the category ID of the model.

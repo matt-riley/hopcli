@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/matt-riley/hopcli/internal/categories"
 	"github.com/matt-riley/hopcli/internal/categoryproducts"
@@ -258,7 +258,7 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return mm, tea.Batch(cmds...)
 }
 
-func (mm MainModel) View() string {
+func (mm MainModel) View() tea.View {
 	// var mainViewContent string // Removed as it was declared and not used before re-assignment
 	var helpContent string
 
@@ -291,7 +291,9 @@ func (mm MainModel) View() string {
 		errorMessage := errorStyle.Render("Error: " + mm.ErrMsg)
 		errorViewHeight := max(mm.Height-lipgloss.Height(styledFooter), 0)
 		centeredError := lipgloss.Place(mm.Width, errorViewHeight, lipgloss.Center, lipgloss.Center, errorMessage)
-		return lipgloss.JoinVertical(lipgloss.Left, centeredError, styledFooter)
+		v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, centeredError, styledFooter))
+		v.AltScreen = true
+		return v
 	}
 
 	if mm.Loading {
@@ -304,23 +306,27 @@ func (mm MainModel) View() string {
 		// Calculate height for loading view area, leave space for footer
 		loadingViewHeight := max(mm.Height-lipgloss.Height(styledFooter), 0)
 		centeredLoadingView := lipgloss.Place(mm.Width, loadingViewHeight, lipgloss.Center, lipgloss.Center, loadingViewContent)
-		return lipgloss.JoinVertical(lipgloss.Left, centeredLoadingView, styledFooter)
+		v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, centeredLoadingView, styledFooter))
+		v.AltScreen = true
+		return v
 	}
 
 	// If not loading and no error, show the current view with logo and footer
-	currentViewRender := mm.CurrentView.View()
+	currentViewRender := mm.CurrentView.View().Content
 
 	// Join logo and current view horizontally
 	logoAndCurrentView := lipgloss.JoinHorizontal(lipgloss.Top, logo, currentViewRender)
 
 	finalLayout := lipgloss.JoinVertical(lipgloss.Left, logoAndCurrentView, styledFooter)
 
-	return finalLayout
+	v := tea.NewView(finalLayout)
+	v.AltScreen = true
+	return v
 }
 
 func Run() {
 	model := InitialModel()
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)

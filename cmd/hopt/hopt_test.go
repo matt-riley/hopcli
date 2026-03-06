@@ -5,7 +5,7 @@ import (
 	"reflect" // Added reflect import
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/matryer/is"
 
 	"github.com/matt-riley/hopcli/cmd/hopt"
@@ -178,7 +178,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 	t.Run("should return Quit command on 'q' key", func(t *testing.T) {
 		is := is.New(t)
 		m := hopt.InitialModel()
-		_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+		_, cmd := m.Update(tea.KeyPressMsg{Code: 'q', Text: "q"})
 		is.True(reflect.ValueOf(cmd).Pointer() == reflect.ValueOf(tea.Quit).Pointer())
 	})
 
@@ -196,7 +196,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		is.Equal(len(m.PreviousViews), 1)
 
 		// 2. Press 'h' to go back
-		updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+		updatedModel, _ = m.Update(tea.KeyPressMsg{Code: 'h', Text: "h"})
 		m = updatedModel.(hopt.MainModel)
 		is.Equal(m.State, hopt.DefaultView)
 		is.Equal(len(m.PreviousViews), 0)
@@ -219,12 +219,12 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		is.Equal(m.State, hopt.CategoryProductsView)
 		is.Equal(len(m.PreviousViews), 2)
 
-		updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}}) // Back to CategoriesView
+		updatedModel, _ = m.Update(tea.KeyPressMsg{Code: 'h', Text: "h"}) // Back to CategoriesView
 		m = updatedModel.(hopt.MainModel)
 		is.Equal(m.State, hopt.CategoriesView)
 		is.Equal(len(m.PreviousViews), 1)
 
-		updatedModel, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}}) // Back to DefaultView
+		updatedModel, _ = m.Update(tea.KeyPressMsg{Code: 'h', Text: "h"}) // Back to DefaultView
 		m = updatedModel.(hopt.MainModel)
 		is.Equal(m.State, hopt.DefaultView)
 		is.Equal(len(m.PreviousViews), 0)
@@ -236,7 +236,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		is.Equal(m.State, hopt.DefaultView) // Pre-condition
 		is.Equal(len(m.PreviousViews), 0)   // Pre-condition
 
-		updatedModel, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+		updatedModel, _ := m.Update(tea.KeyPressMsg{Code: 'h', Text: "h"})
 		m = updatedModel.(hopt.MainModel)
 		is.Equal(m.State, hopt.DefaultView) // Should remain in DefaultView
 		is.Equal(len(m.PreviousViews), 0)   // PreviousViews stack should still be empty

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	// tea "github.com/charmbracelet/bubbletea" // Not directly used for assertions in these tests
+	// tea "charm.land/bubbletea/v2" // Not directly used for assertions in these tests
 	"github.com/matryer/is"
 
 	"github.com/matt-riley/hopcli/internal/commands"
@@ -108,10 +108,10 @@ func TestProductView_Rendering(t *testing.T) {
 
 	view := model.View()
 
-	is.True(view != "") // Should render something
-	is.True(strings.Contains(view, "My Product"))
-	is.True(strings.Contains(view, "Some Desc"))     // Check first part of desc
-	is.True(strings.Contains(view, "More details.")) // Check second part of desc
-	is.True(strings.Contains(view, "LINK"))          // Check for the link text
-	is.True(strings.Contains(view, "example.com"))   // Check for part of the URL
+	is.True(view.Content != "") // Should render something
+	is.True(strings.Contains(view.Content, "My Product"))
+	is.True(strings.Contains(view.Content, "Some Desc"))     // Check first part of desc
+	is.True(strings.Contains(view.Content, "More details.")) // Check second part of desc
+	is.True(strings.Contains(view.Content, "LINK"))          // Check for the link text
+	is.True(strings.Contains(view.Content, "example.com"))   // Check for part of the URL
 }

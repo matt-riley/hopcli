@@ -6,8 +6,8 @@ import (
 	"strings"
 	"unicode"
 
+	tea "charm.land/bubbletea/v2"
 	md "github.com/JohannesKaufmann/html-to-markdown/v2"
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 
 	"github.com/matt-riley/hopcli/internal/commands"
@@ -57,17 +57,17 @@ func (pm ProductModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return pm, nil
 }
 
-func (pm ProductModel) View() string {
+func (pm ProductModel) View() tea.View {
 	renderer, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(), glamour.WithWordWrap((pm.Width/3)*2),
 	)
 	if err != nil {
-		return ""
+		return tea.NewView("")
 	}
 
 	txt, err := renderer.Render(fmt.Sprintf("# %s\n\n%s\n\n[LINK](%s)", pm.Product.Title, pm.Product.Description, pm.Product.URL))
 	if err != nil {
-		return ""
+		return tea.NewView("")
 	}
-	return txt
+	return tea.NewView(txt)
 }

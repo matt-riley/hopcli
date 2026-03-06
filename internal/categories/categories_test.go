@@ -3,8 +3,8 @@ package categories_test
 import (
 	"testing"
 
-	// "github.com/charmbracelet/bubbles/list" // Not directly used for assertions
-	tea "github.com/charmbracelet/bubbletea"
+	// "charm.land/bubbles/v2/list" // Not directly used for assertions
+	tea "charm.land/bubbletea/v2"
 	"github.com/matryer/is"
 
 	"github.com/matt-riley/hopcli/internal/categories"
@@ -95,7 +95,7 @@ func TestCategoriesUpdate_EnterKey(t *testing.T) {
 
 	model.List.Select(0) // Select the first item ("IPA")
 
-	_, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	_, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	is.True(cmd != nil)
 
 	msgResult := cmd().(commands.StartLoadingProductsForCategoryMsg)

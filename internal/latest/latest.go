@@ -5,8 +5,8 @@ import (
 	"html"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/list"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/list"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/matt-riley/hopcli/internal/commands"
 )
@@ -125,7 +125,7 @@ func (lm LatestModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return lm, tea.Batch(cmds...)
 }
 
-func (lm LatestModel) View() string {
+func (lm LatestModel) View() tea.View {
 	lm.Choices.SetShowHelp(false)                                                              // Use exported field
 	lm.Choices.Title = fmt.Sprintf("Latest Beers (Page %d/%d)", lm.CurrentPage, lm.TotalPages) // Use exported field
 	if lm.TotalPages == 0 && lm.TotalItems > 0 {                                               // Case where API might return 0 pages but has items (should be 1)
@@ -133,5 +133,5 @@ func (lm LatestModel) View() string {
 	} else if lm.TotalItems == 0 {
 		lm.Choices.Title = "Latest Beers (No items found)" // Use exported field
 	}
-	return lm.Choices.View() // Use exported field
+	return tea.NewView(lm.Choices.View()) // Use exported field
 }

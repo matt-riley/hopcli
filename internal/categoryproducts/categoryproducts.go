@@ -30,11 +30,11 @@ type Model struct {
 	categoryID   int
 	width        int
 	height       int
-	products    *commands.Products // Store the fetched products
-	CurrentPage int                // New
-	PerPage     int                // New
-	TotalItems  int                // New
-	TotalPages  int                // New
+	products     *commands.Products // Store the fetched products
+	CurrentPage  int                // New
+	PerPage      int                // New
+	TotalItems   int                // New
+	TotalPages   int                // New
 }
 
 func NewModel(categoryName string, categoryID int) Model {

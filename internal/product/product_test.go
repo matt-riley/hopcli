@@ -124,4 +124,3 @@ func TestProductView_Rendering_WithoutPrice(t *testing.T) {
 	is.True(strings.Contains(view.Content, "Free Product"))
 	is.True(!strings.Contains(view.Content, "Price:"))
 }
-

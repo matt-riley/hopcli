@@ -492,7 +492,6 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		is.Equal(m.CategoryProductsModel.List.Height(), cvTyped.List.Height())
 	})
 
-
 	t.Run("typed LatestModel field stays in sync with CurrentView after key update", func(t *testing.T) {
 		is := is.New(t)
 		m := hopt.InitialModel()
@@ -595,7 +594,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		m = updatedModel.(hopt.MainModel)
 
 		is.Equal(m.State, hopt.DefaultView) // State must not change
-		is.Equal(m.Loading, false)           // Must not start loading
+		is.Equal(m.Loading, false)          // Must not start loading
 	})
 
 	t.Run("StartLoadingProductsForCategoryMsg ignored when not on CategoriesView", func(t *testing.T) {
@@ -607,7 +606,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		m = updatedModel.(hopt.MainModel)
 
 		is.Equal(m.State, hopt.DefaultView) // State must not change
-		is.Equal(m.Loading, false)           // Must not start loading
+		is.Equal(m.Loading, false)          // Must not start loading
 	})
 
 	t.Run("LoadCategoryProductsPageMsg ignored when not on CategoryProductsView", func(t *testing.T) {
@@ -619,7 +618,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		m = updatedModel.(hopt.MainModel)
 
 		is.Equal(m.State, hopt.DefaultView) // State must not change
-		is.Equal(m.Loading, false)           // Must not start loading
+		is.Equal(m.Loading, false)          // Must not start loading
 	})
 
 	t.Run("ProductsMsg with stale NavGen is dropped even when state matches", func(t *testing.T) {
@@ -657,7 +656,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		m = updatedModel.(hopt.MainModel)
 
 		is.Equal(m.State, hopt.LatestView) // State must not change
-		is.Equal(m.Loading, false)          // Must not start loading
+		is.Equal(m.Loading, false)         // Must not start loading
 	})
 
 	t.Run("CategoriesResponseMsg re-dispatches WindowSizeMsg to new view", func(t *testing.T) {

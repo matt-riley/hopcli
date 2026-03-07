@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"html"
 	"math"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -354,6 +357,25 @@ type errorString struct {
 
 func (e *errorString) Error() string {
 	return e.s
+}
+
+var (
+	summaryRe  = regexp.MustCompile(`(?is)<p[^>]*>(.*?)</p>`)
+	innerTagRe = regexp.MustCompile(`<[^>]+>`)
+)
+
+// ExtractSummary extracts the plain-text content of the first <p> tag from an
+// HTML description string. This returns the structured beer summary
+// (e.g. "IPA – New England / Hazy – Can 440ml – 6.5%") from product descriptions
+// where short_description is unpopulated.
+// Returns "" if no <p> tag is found.
+func ExtractSummary(description string) string {
+	m := summaryRe.FindStringSubmatch(description)
+	if len(m) < 2 {
+		return ""
+	}
+	inner := innerTagRe.ReplaceAllString(m[1], "")
+	return strings.TrimSpace(html.UnescapeString(inner))
 }
 
 func HandleDisplayProduct(w int, h int, prod Product) tea.Cmd {

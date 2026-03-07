@@ -93,10 +93,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					onSaleMarker = " 🏷️"
 				}
 
-				shortDesc := html.UnescapeString(prod.ShortDescription)
-				if shortDesc == "" {
-					shortDesc = html.UnescapeString(prod.Description)
-				}
+				shortDesc := commands.ExtractSummary(prod.Description)
 
 				var desc string
 				if formattedPrice != "" {

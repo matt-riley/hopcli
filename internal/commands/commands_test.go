@@ -192,3 +192,49 @@ func TestFormatPrice(t *testing.T) {
 	// Negative minorUnit fallback
 	is.Equal(commands.FormatPrice("420", "£", "", -1), "£420")
 }
+
+func TestExtractSummary(t *testing.T) {
+	is := is.New(t)
+
+	// Normal 4-part summary with HTML entities for en-dash
+	is.Equal(
+		commands.ExtractSummary(`<p>Lager &#8211; Helles &#8211; Bottle 500ml &#8211; 5.0%</p><p>Full description here.</p>`),
+		"Lager – Helles – Bottle 500ml – 5.0%",
+	)
+
+	// Can format
+	is.Equal(
+		commands.ExtractSummary(`<p>IPA &#8211; New England / Hazy &#8211; Can 440ml &#8211; 6.5%</p>`),
+		"IPA – New England / Hazy – Can 440ml – 6.5%",
+	)
+
+	// 3-part format (no substyle)
+	is.Equal(
+		commands.ExtractSummary(`<p>Pale Ale &#8211; Can 440ml &#8211; 5.4%</p>`),
+		"Pale Ale – Can 440ml – 5.4%",
+	)
+
+	// First <p> has class/id attributes (matches p[^>]*)
+	is.Equal(
+		commands.ExtractSummary(`<p class="summary">Stout &#8211; Imperial &#8211; Can 330ml &#8211; 10.0%</p>`),
+		"Stout – Imperial – Can 330ml – 10.0%",
+	)
+
+	// First <p> has inner HTML tags (stripped)
+	is.Equal(
+		commands.ExtractSummary(`<p><strong>Wheat Beer</strong> &#8211; Hefeweizen &#8211; Bottle 500ml &#8211; 5.3%</p>`),
+		"Wheat Beer – Hefeweizen – Bottle 500ml – 5.3%",
+	)
+
+	// No <p> tag — returns ""
+	is.Equal(commands.ExtractSummary(`Just plain text, no tags`), "")
+
+	// Empty description — returns ""
+	is.Equal(commands.ExtractSummary(""), "")
+
+	// Whitespace trimmed
+	is.Equal(
+		commands.ExtractSummary(`<p>  Lager &#8211; Helles &#8211; Bottle 500ml &#8211; 5.0%  </p>`),
+		"Lager – Helles – Bottle 500ml – 5.0%",
+	)
+}

@@ -85,14 +85,7 @@ func (lm LatestModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		var items []list.Item
 		for _, product := range *msg.Products {
-			shortDesc := html.UnescapeString(product.ShortDescription)
-			if shortDesc == "" {
-				shortDesc = html.UnescapeString(product.Description) // fallback only
-			}
-			if len(shortDesc) > 150 {
-				shortDesc = shortDesc[:150] + "..."
-			}
-			processedDesc := shortDesc
+			processedDesc := commands.ExtractSummary(product.Description)
 
 			formattedPrice := commands.FormatPrice(
 				product.Prices.Price,

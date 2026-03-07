@@ -11,10 +11,9 @@ import (
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
 type CategoryListItem struct {
-	ID          int
-	Name        string
-	Slug        string
-	APIEndpoint string // Store the wp:post_type href
+	ID   int
+	Name string
+	Slug string
 }
 
 func (i CategoryListItem) Title() string       { return i.Name }
@@ -57,15 +56,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		items := []list.Item{}
 		if msg.Categories != nil {
 			for _, cat := range *msg.Categories {
-				apiEndpoint := ""
-				if len(cat.Links.WpPostType) > 0 {
-					apiEndpoint = cat.Links.WpPostType[0].Href
-				}
 				items = append(items, CategoryListItem{
-					ID:          cat.ID,
-					Name:        cat.Name,
-					Slug:        cat.Slug,
-					APIEndpoint: apiEndpoint,
+					ID:   cat.ID,
+					Name: cat.Name,
+					Slug: cat.Slug,
 				})
 			}
 		}
@@ -87,9 +81,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return commands.StartLoadingProductsForCategoryMsg{
 						CategoryID:   selectedItem.ID,
 						CategoryName: selectedItem.Name,
-						APIEndpoint:  selectedItem.APIEndpoint,
-						Width:        m.width,  // Pass current width
-						Height:       m.height, // Pass current height
+						Width:        m.width,
+						Height:       m.height,
 					}
 				}
 			}

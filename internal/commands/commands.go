@@ -3,9 +3,10 @@ package commands
 import (
 	"context"
 	"encoding/json"
-	"fmt" // Added fmt import
+	"fmt"
+	"math"
 	"net/http"
-	"strconv" // Added strconv import
+	"strconv"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -15,16 +16,28 @@ import (
 // It's a variable so it can be overridden for testing.
 var TheHoptimistBaseURL = "https://thehoptimist.co.uk"
 
+// ProductPrices holds pricing information from the WooCommerce Store API.
+type ProductPrices struct {
+	Price             string `json:"price"`
+	RegularPrice      string `json:"regular_price"`
+	SalePrice         string `json:"sale_price"`
+	CurrencyCode      string `json:"currency_code"`
+	CurrencySymbol    string `json:"currency_symbol"`
+	CurrencyMinorUnit int    `json:"currency_minor_unit"`
+	CurrencyPrefix    string `json:"currency_prefix"`
+	CurrencySuffix    string `json:"currency_suffix"`
+}
+
 type (
 	Product struct {
-		ID    int    `json:"id"`
-		Link  string `json:"link"`
-		Title struct {
-			Rendered string `json:"rendered"`
-		} `json:"title"`
-		Description struct {
-			Rendered string `json:"rendered"`
-		} `json:"excerpt"`
+		ID               int           `json:"id"`
+		Link             string        `json:"permalink"`
+		Title            string        `json:"name"`
+		Description      string        `json:"description"`
+		ShortDescription string        `json:"short_description"`
+		Prices           ProductPrices `json:"prices"`
+		OnSale           bool          `json:"on_sale"`
+		IsInStock        bool          `json:"is_in_stock"`
 	}
 	Products          []Product
 	LatestResponseMsg struct {
@@ -33,12 +46,14 @@ type (
 		Height     int
 		TotalItems int
 		TotalPages int
+		RequestID  int
 		Err        error
 	}
 	ProductsMsg struct {
 		Product *Product
 		Width   int
 		Height  int
+		NavGen  int
 		Err     error
 	}
 )
@@ -47,27 +62,25 @@ type (
 type LoadLatestPageMsg struct {
 	Page    int
 	PerPage int
+	NavGen  int
 }
 
 // LoadCategoryProductsPageMsg is a message to indicate that a specific page of products for a category should be loaded.
 type LoadCategoryProductsPageMsg struct {
 	CategoryID   int
 	CategoryName string
-	APIEndpoint  string // The specific API endpoint for fetching this category's products
 	Page         int
 	PerPage      int
+	NavGen       int
 }
 
-// Category models a product category from the WordPress API.
+// Category models a product category from the WooCommerce Store API.
 type Category struct {
-	ID    int    `json:"id"`
-	Name  string `json:"name"`
-	Slug  string `json:"slug"`
-	Links struct {
-		WpPostType []struct {
-			Href string `json:"href"`
-		} `json:"wp:post_type"`
-	} `json:"_links"`
+	ID     int    `json:"id"`
+	Name   string `json:"name"`
+	Slug   string `json:"slug"`
+	Parent int    `json:"parent"`
+	Count  int    `json:"count"`
 }
 
 // Categories is a slice of Category.
@@ -78,6 +91,7 @@ type CategoriesResponseMsg struct {
 	Categories *Categories
 	Width      int
 	Height     int
+	RequestID  int
 	Err        error
 }
 
@@ -86,11 +100,11 @@ type ProductsForCategoryResponseMsg struct {
 	Products     *Products
 	CategoryName string
 	CategoryID   int
-	APIEndpoint  string // New: To carry over the API endpoint
 	Width        int
 	Height       int
-	TotalItems   int // New
-	TotalPages   int // New
+	TotalItems   int
+	TotalPages   int
+	RequestID    int
 	Err          error
 }
 
@@ -99,14 +113,14 @@ type ProductsForCategoryResponseMsg struct {
 type StartLoadingProductsForCategoryMsg struct {
 	CategoryID   int
 	CategoryName string
-	APIEndpoint  string
 	Width        int
 	Height       int
-	Page         int // New for pagination
-	PerPage      int // New for pagination
+	Page         int
+	PerPage      int
+	NavGen       int
 }
 
-func HandleGetLatest(w int, h int, page int, perPage int) tea.Cmd {
+func HandleGetLatest(w int, h int, page int, perPage int, requestID int) tea.Cmd {
 	return func() tea.Msg {
 		if page <= 0 {
 			page = 1
@@ -114,23 +128,32 @@ func HandleGetLatest(w int, h int, page int, perPage int) tea.Cmd {
 		if perPage <= 0 {
 			perPage = 10
 		}
-		url := fmt.Sprintf("%s/wp-json/wp/v2/product?orderby=date&page=%d&per_page=%d", TheHoptimistBaseURL, page, perPage)
+		url := fmt.Sprintf("%s/wp-json/wc/store/v1/products?orderby=date&order=desc&page=%d&per_page=%d", TheHoptimistBaseURL, page, perPage)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return LatestResponseMsg{
-				Err: err,
+				Err:       err,
+				RequestID: requestID,
 			}
 		}
 
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
 			return LatestResponseMsg{
-				Err: err,
+				Err:       err,
+				RequestID: requestID,
 			}
 		}
 		defer res.Body.Close()
+
+		if res.StatusCode < 200 || res.StatusCode > 299 {
+			return LatestResponseMsg{
+				Err:       fmt.Errorf("unexpected status %d from API", res.StatusCode),
+				RequestID: requestID,
+			}
+		}
 
 		totalItemsStr := res.Header.Get("X-WP-Total")
 		totalPagesStr := res.Header.Get("X-WP-TotalPages")
@@ -165,7 +188,8 @@ func HandleGetLatest(w int, h int, page int, perPage int) tea.Cmd {
 		decodeErr := json.NewDecoder(res.Body).Decode(&products) // Renamed err to decodeErr
 		if decodeErr != nil {
 			return LatestResponseMsg{
-				Err: decodeErr, // Use decodeErr here
+				Err:       decodeErr,
+				RequestID: requestID,
 			}
 		}
 
@@ -175,43 +199,49 @@ func HandleGetLatest(w int, h int, page int, perPage int) tea.Cmd {
 			Height:     h,
 			TotalItems: totalItems,
 			TotalPages: totalPages,
-			// Err should be nil if decodeErr was nil
+			RequestID:  requestID,
 		}
 	}
 }
 
 // HandleGetCategories fetches product categories from the API.
-func HandleGetCategories(w int, h int) tea.Cmd {
+func HandleGetCategories(requestID int) tea.Cmd {
 	return func() tea.Msg {
-		url := fmt.Sprintf("%s/wp-json/wp/v2/product_cat", TheHoptimistBaseURL)
+		url := fmt.Sprintf("%s/wp-json/wc/store/v1/products/categories", TheHoptimistBaseURL)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
-			return CategoriesResponseMsg{Err: err}
+			return CategoriesResponseMsg{Err: err, RequestID: requestID}
 		}
 
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
-			return CategoriesResponseMsg{Err: err}
+			return CategoriesResponseMsg{Err: err, RequestID: requestID}
 		}
 		defer res.Body.Close()
 
+		if res.StatusCode < 200 || res.StatusCode > 299 {
+			return CategoriesResponseMsg{
+				Err:       fmt.Errorf("unexpected status %d from API", res.StatusCode),
+				RequestID: requestID,
+			}
+		}
+
 		var categories Categories
 		if err := json.NewDecoder(res.Body).Decode(&categories); err != nil {
-			return CategoriesResponseMsg{Err: err}
+			return CategoriesResponseMsg{Err: err, RequestID: requestID}
 		}
 
 		return CategoriesResponseMsg{
 			Categories: &categories,
-			Width:      w,
-			Height:     h,
+			RequestID:  requestID,
 		}
 	}
 }
 
 // HandleGetProductsByCategory fetches products for a given category from the API.
-func HandleGetProductsByCategory(w int, h int, categoryID int, categoryName string, apiEndpoint string, page int, perPage int) tea.Cmd {
+func HandleGetProductsByCategory(categoryID int, categoryName string, page int, perPage int, requestID int) tea.Cmd {
 	return func() tea.Msg {
 		if page <= 0 {
 			page = 1
@@ -220,27 +250,29 @@ func HandleGetProductsByCategory(w int, h int, categoryID int, categoryName stri
 			perPage = 10
 		}
 
-		if apiEndpoint == "" {
-			return ProductsForCategoryResponseMsg{
-				Err:          NewError("API endpoint for category is empty"),
-				CategoryName: categoryName,
-				CategoryID:   categoryID,
-			}
-		}
-
-		url := fmt.Sprintf("%s&page=%d&per_page=%d", apiEndpoint, page, perPage)
+		url := fmt.Sprintf("%s/wp-json/wc/store/v1/products?category=%d&page=%d&per_page=%d",
+			TheHoptimistBaseURL, categoryID, page, perPage)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
-			return ProductsForCategoryResponseMsg{Err: err, CategoryName: categoryName, CategoryID: categoryID}
+			return ProductsForCategoryResponseMsg{Err: err, CategoryName: categoryName, CategoryID: categoryID, RequestID: requestID}
 		}
 
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
-			return ProductsForCategoryResponseMsg{Err: err, CategoryName: categoryName, CategoryID: categoryID}
+			return ProductsForCategoryResponseMsg{Err: err, CategoryName: categoryName, CategoryID: categoryID, RequestID: requestID}
 		}
 		defer res.Body.Close()
+
+		if res.StatusCode < 200 || res.StatusCode > 299 {
+			return ProductsForCategoryResponseMsg{
+				Err:          fmt.Errorf("unexpected status %d from API", res.StatusCode),
+				CategoryName: categoryName,
+				CategoryID:   categoryID,
+				RequestID:    requestID,
+			}
+		}
 
 		totalItemsStr := res.Header.Get("X-WP-Total")
 		totalPagesStr := res.Header.Get("X-WP-TotalPages")
@@ -274,20 +306,39 @@ func HandleGetProductsByCategory(w int, h int, categoryID int, categoryName stri
 		var products Products
 		decodeErr := json.NewDecoder(res.Body).Decode(&products)
 		if decodeErr != nil {
-			return ProductsForCategoryResponseMsg{Err: decodeErr, CategoryName: categoryName, CategoryID: categoryID}
+			return ProductsForCategoryResponseMsg{Err: decodeErr, CategoryName: categoryName, CategoryID: categoryID, RequestID: requestID}
 		}
 
 		return ProductsForCategoryResponseMsg{
 			Products:     &products,
 			CategoryName: categoryName,
 			CategoryID:   categoryID,
-			APIEndpoint:  apiEndpoint, // Populate the APIEndpoint
-			Width:        w,
-			Height:       h,
 			TotalItems:   totalItems,
 			TotalPages:   totalPages,
+			RequestID:    requestID,
 		}
 	}
+}
+
+// FormatPrice converts a Store API minor-unit price string to a display string.
+// e.g. FormatPrice("420", "£", "", 2) → "£4.20"
+//
+// Edge cases:
+//   - price == "" → returns "" (callers must suppress empty price in UI)
+//   - non-numeric price → returns prefix + price + suffix as-is
+//   - minorUnit < 0 → same fallback as non-numeric
+//   - minorUnit == 0 → no decimal separator
+//   - price == "0" → returns formatted zero (e.g. "£0.00")
+func FormatPrice(price string, prefix string, suffix string, minorUnit int) string {
+	if price == "" {
+		return ""
+	}
+	n, err := strconv.Atoi(price)
+	if err != nil || minorUnit < 0 {
+		return prefix + price + suffix
+	}
+	divisor := math.Pow10(minorUnit)
+	return fmt.Sprintf("%s%."+strconv.Itoa(minorUnit)+"f%s", prefix, float64(n)/divisor, suffix)
 }
 
 // NewError creates a new error.

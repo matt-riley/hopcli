@@ -13,7 +13,7 @@ import (
 
 func TestNewCategoryProductsModel_InitialValues(t *testing.T) {
 	is := is.New(t)
-	model := categoryproducts.NewModel("Test Category", 123, "http://fake.api/ep")
+	model := categoryproducts.NewModel("Test Category", 123)
 
 	// Assert exported fields
 	is.Equal(model.CurrentPage, 1)
@@ -32,15 +32,12 @@ func TestNewCategoryProductsModel_InitialValues(t *testing.T) {
 
 func TestCategoryProductsModel_Update_ProductsForCategoryResponseMsg(t *testing.T) {
 	is := is.New(t)
-	model := categoryproducts.NewModel("Test Cat", 1, "api/ep")
-	testProducts := &commands.Products{{ID: 1, Title: struct {
-		Rendered string `json:"rendered"`
-	}{Rendered: "Product 1"}}}
+	model := categoryproducts.NewModel("Test Cat", 1)
+	testProducts := &commands.Products{{ID: 1, Title: "Product 1"}}
 	msg := commands.ProductsForCategoryResponseMsg{
 		Products:     testProducts,
-		CategoryID:   1, // Ensure this matches the model's categoryID for the message to be processed
+		CategoryID:   1,
 		CategoryName: "Test Cat",
-		APIEndpoint:  "api/ep",
 		TotalItems:   30,
 		TotalPages:   3,
 		Width:        80,
@@ -63,10 +60,9 @@ func TestCategoryProductsModel_Update_PageNavigation(t *testing.T) {
 	// Initial setup common for page navigation tests
 	initialCategoryName := "Test Cat"
 	initialCategoryID := 1
-	initialAPIEndpoint := "api/ep"
 	initialPerPage := 10
 
-	baseModel := categoryproducts.NewModel(initialCategoryName, initialCategoryID, initialAPIEndpoint)
+	baseModel := categoryproducts.NewModel(initialCategoryName, initialCategoryID)
 	baseModel.CurrentPage = 2
 	baseModel.TotalPages = 3
 	baseModel.PerPage = initialPerPage
@@ -84,7 +80,6 @@ func TestCategoryProductsModel_Update_PageNavigation(t *testing.T) {
 		is.Equal(pageMsg.PerPage, initialPerPage)
 		is.Equal(pageMsg.CategoryID, initialCategoryID)
 		is.Equal(pageMsg.CategoryName, initialCategoryName)
-		is.Equal(pageMsg.APIEndpoint, initialAPIEndpoint)
 	})
 
 	t.Run("next page on last page", func(t *testing.T) {
@@ -105,10 +100,9 @@ func TestCategoryProductsModel_Update_PageNavigation(t *testing.T) {
 		is.True(cmd != nil)
 		pageMsg := cmd().(commands.LoadCategoryProductsPageMsg)
 		is.Equal(pageMsg.Page, 1)
-		is.Equal(pageMsg.PerPage, initialPerPage) // Check other fields are passed through
+		is.Equal(pageMsg.PerPage, initialPerPage)
 		is.Equal(pageMsg.CategoryID, initialCategoryID)
 		is.Equal(pageMsg.CategoryName, initialCategoryName)
-		is.Equal(pageMsg.APIEndpoint, initialAPIEndpoint)
 	})
 
 	t.Run("previous page on first page", func(t *testing.T) {

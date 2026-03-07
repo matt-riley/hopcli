@@ -31,9 +31,7 @@ func TestNewLatestModel_InitialValues(t *testing.T) {
 func TestLatestModel_Update_LatestResponseMsg(t *testing.T) {
 	is := is.New(t)
 	model := latest.NewLatestModel()
-	testProducts := &commands.Products{{ID: 1, Title: struct {
-		Rendered string `json:"rendered"`
-	}{Rendered: "Beer 1"}}}
+	testProducts := &commands.Products{{ID: 1, Title: "Beer 1"}}
 	msg := commands.LatestResponseMsg{Products: testProducts, TotalItems: 25, TotalPages: 3, Width: 80, Height: 24}
 	updatedModel, _ := model.Update(msg)
 	lm := updatedModel.(latest.LatestModel)

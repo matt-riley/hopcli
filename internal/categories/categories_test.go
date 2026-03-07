@@ -25,20 +25,8 @@ func TestCategoriesUpdate_CategoriesResponseMsg(t *testing.T) {
 	model := categories.NewCategoriesModel()
 
 	sampleCategories := &commands.Categories{
-		{ID: 1, Name: "IPA", Slug: "ipa", Links: struct {
-			WpPostType []struct {
-				Href string `json:"href"`
-			} `json:"wp:post_type"`
-		}{WpPostType: []struct {
-			Href string `json:"href"`
-		}{{Href: "http://api/ipa"}}}},
-		{ID: 2, Name: "Stout", Slug: "stout", Links: struct {
-			WpPostType []struct {
-				Href string `json:"href"`
-			} `json:"wp:post_type"`
-		}{WpPostType: []struct {
-			Href string `json:"href"`
-		}{{Href: "http://api/stout"}}}},
+		{ID: 1, Name: "IPA", Slug: "ipa"},
+		{ID: 2, Name: "Stout", Slug: "stout"},
 	}
 	msg := commands.CategoriesResponseMsg{Categories: sampleCategories, Width: 80, Height: 24}
 	updatedModelTea, _ := model.Update(msg)
@@ -51,14 +39,12 @@ func TestCategoriesUpdate_CategoriesResponseMsg(t *testing.T) {
 	is.Equal(firstItem.ID, 1)
 	is.Equal(firstItem.Name, "IPA")
 	is.Equal(firstItem.Slug, "ipa")
-	is.Equal(firstItem.APIEndpoint, "http://api/ipa")
 
 	secondItem, ok := updatedModel.List.Items()[1].(categories.CategoryListItem)
 	is.True(ok)
 	is.Equal(secondItem.ID, 2)
 	is.Equal(secondItem.Name, "Stout")
 	is.Equal(secondItem.Slug, "stout")
-	is.Equal(secondItem.APIEndpoint, "http://api/stout")
 }
 
 func TestCategoriesUpdate_EnterKey(t *testing.T) {
@@ -74,20 +60,8 @@ func TestCategoriesUpdate_EnterKey(t *testing.T) {
 	model = modelTea.(categories.Model)
 
 	sampleCategories := &commands.Categories{
-		{ID: 1, Name: "IPA", Slug: "ipa", Links: struct {
-			WpPostType []struct {
-				Href string `json:"href"`
-			} `json:"wp:post_type"`
-		}{WpPostType: []struct {
-			Href string `json:"href"`
-		}{{Href: "api/ipa"}}}},
-		{ID: 2, Name: "Stout", Slug: "stout", Links: struct {
-			WpPostType []struct {
-				Href string `json:"href"`
-			} `json:"wp:post_type"`
-		}{WpPostType: []struct {
-			Href string `json:"href"`
-		}{{Href: "http://api/stout"}}}},
+		{ID: 1, Name: "IPA", Slug: "ipa"},
+		{ID: 2, Name: "Stout", Slug: "stout"},
 	}
 
 	modelTea, _ = model.Update(commands.CategoriesResponseMsg{Categories: sampleCategories, Width: 80, Height: 24})
@@ -101,7 +75,6 @@ func TestCategoriesUpdate_EnterKey(t *testing.T) {
 	msgResult := cmd().(commands.StartLoadingProductsForCategoryMsg)
 	is.Equal(msgResult.CategoryID, 1)
 	is.Equal(msgResult.CategoryName, "IPA")
-	is.Equal(msgResult.APIEndpoint, "api/ipa")
 	is.Equal(msgResult.Width, 100) // Check if width from WindowSizeMsg is passed
 	is.Equal(msgResult.Height, 50) // Check if height from WindowSizeMsg is passed
 }

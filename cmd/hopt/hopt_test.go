@@ -9,11 +9,21 @@ import (
 	"github.com/matryer/is"
 
 	"github.com/matt-riley/hopcli/cmd/hopt"
+	"github.com/matt-riley/hopcli/internal/categories"
 	"github.com/matt-riley/hopcli/internal/categoryproducts" // Added import
 	"github.com/matt-riley/hopcli/internal/commands"
 	"github.com/matt-riley/hopcli/internal/default"
 	"github.com/matt-riley/hopcli/internal/latest" // Added import
 )
+
+type countingModel struct{ msgs []tea.Msg }
+
+func (m countingModel) Init() tea.Cmd { return nil }
+func (m countingModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	m.msgs = append(m.msgs, msg)
+	return m, nil
+}
+func (m countingModel) View() tea.View { return tea.NewView("") }
 
 func TestInitialModel(t *testing.T) {
 	is := is.New(t)
@@ -44,15 +54,11 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		m = updatedModel.(hopt.MainModel)
 
 		products := &commands.Products{{
-			ID: 1,
-			Title: struct {
-				Rendered string `json:"rendered"`
-			}{Rendered: "Test Beer"},
-			Description: struct {
-				Rendered string `json:"rendered"`
-			}{Rendered: "%%%A tasty sample beer description."},
+			ID:          1,
+			Title:       "Test Beer",
+			Description: "A tasty sample beer description.",
 		}}
-		msg := commands.LatestResponseMsg{Products: products, Width: 80, Height: 24}
+		msg := commands.LatestResponseMsg{Products: products, Width: 80, Height: 24, RequestID: 1}
 		updatedModel, _ = m.Update(msg)
 		m = updatedModel.(hopt.MainModel)
 
@@ -70,7 +76,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		m = updatedModel.(hopt.MainModel)
 
 		errMsgContent := "network error"
-		msg := commands.LatestResponseMsg{Err: errors.New(errMsgContent)}
+		msg := commands.LatestResponseMsg{Err: errors.New(errMsgContent), RequestID: 1}
 		updatedModel, _ = m.Update(msg)
 		m = updatedModel.(hopt.MainModel)
 
@@ -96,7 +102,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		m = updatedModel.(hopt.MainModel)
 
 		categoriesData := &commands.Categories{{ID: 1, Name: "Test Category"}}
-		msg := commands.CategoriesResponseMsg{Categories: categoriesData, Width: 80, Height: 24}
+		msg := commands.CategoriesResponseMsg{Categories: categoriesData, Width: 80, Height: 24, RequestID: 1}
 		updatedModel, _ = m.Update(msg)
 		m = updatedModel.(hopt.MainModel)
 
@@ -114,7 +120,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		m = updatedModel.(hopt.MainModel)
 
 		errMsgContent := "categories fetch error"
-		msg := commands.CategoriesResponseMsg{Err: errors.New(errMsgContent)}
+		msg := commands.CategoriesResponseMsg{Err: errors.New(errMsgContent), RequestID: 1}
 		updatedModel, _ = m.Update(msg)
 		m = updatedModel.(hopt.MainModel)
 
@@ -129,7 +135,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		// Simulate being in categories view first
 		m.State = hopt.CategoriesView // Access exported field
 
-		msg := commands.StartLoadingProductsForCategoryMsg{CategoryID: 1, CategoryName: "Test", APIEndpoint: "some/api", Width: 80, Height: 24}
+		msg := commands.StartLoadingProductsForCategoryMsg{CategoryID: 1, CategoryName: "Test", Width: 80, Height: 24}
 		updatedModel, cmd := m.Update(msg)
 		m = updatedModel.(hopt.MainModel)
 
@@ -140,14 +146,13 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 	t.Run("should transition to categoryProductsView on ProductsForCategoryResponseMsg success", func(t *testing.T) {
 		is := is.New(t)
 		m := hopt.InitialModel()
-		// Simulate loading products for a category
-		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 1, CategoryName: "Test", APIEndpoint: "some/api", Width: 80, Height: 24})
+		// Simulate loading products for a category (requires being in CategoriesView first)
+		m.State = hopt.CategoriesView
+		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 1, CategoryName: "Test", Width: 80, Height: 24})
 		m = updatedModel.(hopt.MainModel)
 
-		products := &commands.Products{{ID: 1, Title: struct {
-			Rendered string `json:"rendered"`
-		}{Rendered: "Test Beer in Category"}}}
-		msg := commands.ProductsForCategoryResponseMsg{Products: products, CategoryID: 1, CategoryName: "Test", Width: 80, Height: 24}
+		products := &commands.Products{{ID: 1, Title: "Test Beer in Category"}}
+		msg := commands.ProductsForCategoryResponseMsg{Products: products, CategoryID: 1, CategoryName: "Test", Width: 80, Height: 24, RequestID: 1}
 		updatedModel, _ = m.Update(msg)
 		m = updatedModel.(hopt.MainModel)
 
@@ -162,11 +167,11 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		m := hopt.InitialModel()
 		// Simulate we were in CategoriesView before trying to load products
 		m.State = hopt.CategoriesView // Manually set the state we expect to return to
-		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 1, CategoryName: "Test", APIEndpoint: "some/api", Width: 80, Height: 24})
+		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 1, CategoryName: "Test", Width: 80, Height: 24})
 		m = updatedModel.(hopt.MainModel)
 
 		errMsgContent := "products for category fetch error"
-		msg := commands.ProductsForCategoryResponseMsg{Err: errors.New(errMsgContent), CategoryID: 1, CategoryName: "Test"}
+		msg := commands.ProductsForCategoryResponseMsg{Err: errors.New(errMsgContent), CategoryID: 1, CategoryName: "Test", RequestID: 1}
 		updatedModel, _ = m.Update(msg)
 		m = updatedModel.(hopt.MainModel)
 
@@ -189,7 +194,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		// 1. Go to LatestView
 		updatedModel, _ := m.Update(defaultview.StartLoadingLatestMsg{})
 		m = updatedModel.(hopt.MainModel)
-		updatedModel, _ = m.Update(commands.LatestResponseMsg{Products: &commands.Products{}, Width: 80, Height: 24})
+		updatedModel, _ = m.Update(commands.LatestResponseMsg{Products: &commands.Products{}, Width: 80, Height: 24, RequestID: 1})
 		m = updatedModel.(hopt.MainModel)
 
 		is.Equal(m.State, hopt.LatestView)
@@ -207,14 +212,14 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		m = hopt.InitialModel() // Reset to DefaultView
 		updatedModel, _ = m.Update(defaultview.StartLoadingCategoriesMsg{})
 		m = updatedModel.(hopt.MainModel)
-		updatedModel, _ = m.Update(commands.CategoriesResponseMsg{Categories: &commands.Categories{{ID: 1, Name: "cat1"}}, Width: 80, Height: 24})
+		updatedModel, _ = m.Update(commands.CategoriesResponseMsg{Categories: &commands.Categories{{ID: 1, Name: "cat1"}}, Width: 80, Height: 24, RequestID: 1})
 		m = updatedModel.(hopt.MainModel)
 		is.Equal(m.State, hopt.CategoriesView)
 		is.Equal(len(m.PreviousViews), 1)
 
-		updatedModel, _ = m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 1, CategoryName: "cat1", APIEndpoint: "test/ep", Width: 80, Height: 24})
+		updatedModel, _ = m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 1, CategoryName: "cat1", Width: 80, Height: 24, NavGen: 1})
 		m = updatedModel.(hopt.MainModel)
-		updatedModel, _ = m.Update(commands.ProductsForCategoryResponseMsg{Products: &commands.Products{}, CategoryID: 1, CategoryName: "cat1", Width: 80, Height: 24})
+		updatedModel, _ = m.Update(commands.ProductsForCategoryResponseMsg{Products: &commands.Products{}, CategoryID: 1, CategoryName: "cat1", Width: 80, Height: 24, RequestID: 2})
 		m = updatedModel.(hopt.MainModel)
 		is.Equal(m.State, hopt.CategoryProductsView)
 		is.Equal(len(m.PreviousViews), 2)
@@ -248,12 +253,12 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		// Transition to LatestView first to simulate being in that view
 		updatedModel, _ := m.Update(defaultview.StartLoadingLatestMsg{})
 		m = updatedModel.(hopt.MainModel)
-		updatedModel, _ = m.Update(commands.LatestResponseMsg{Products: &commands.Products{}, TotalItems: 20, TotalPages: 2})
+		updatedModel, _ = m.Update(commands.LatestResponseMsg{Products: &commands.Products{}, TotalItems: 20, TotalPages: 2, RequestID: 1})
 		m = updatedModel.(hopt.MainModel) // Now in LatestView
 
 		initialPreviousViewsLen := len(m.PreviousViews)
 
-		updatedModel, cmd := m.Update(commands.LoadLatestPageMsg{Page: 2, PerPage: 5})
+		updatedModel, cmd := m.Update(commands.LoadLatestPageMsg{Page: 2, PerPage: 5, NavGen: 1})
 		m = updatedModel.(hopt.MainModel)
 
 		is.Equal(m.Loading, true)
@@ -265,15 +270,16 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 	t.Run("should handle LoadCategoryProductsPageMsg", func(t *testing.T) {
 		is := is.New(t)
 		m := hopt.InitialModel()
-		// Transition to CategoryProductsView first
-		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 1, CategoryName: "Test", APIEndpoint: "test/ep"})
+		// Transition to CategoryProductsView first (requires being in CategoriesView)
+		m.State = hopt.CategoriesView
+		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 1, CategoryName: "Test"})
 		m = updatedModel.(hopt.MainModel)
-		updatedModel, _ = m.Update(commands.ProductsForCategoryResponseMsg{CategoryID: 1, CategoryName: "Test", APIEndpoint: "test/ep", Products: &commands.Products{}, TotalItems: 20, TotalPages: 2})
+		updatedModel, _ = m.Update(commands.ProductsForCategoryResponseMsg{CategoryID: 1, CategoryName: "Test", Products: &commands.Products{}, TotalItems: 20, TotalPages: 2, RequestID: 1})
 		m = updatedModel.(hopt.MainModel) // Now in CategoryProductsView for CategoryID 1
 
 		initialPreviousViewsLen := len(m.PreviousViews)
 
-		updatedModel, cmd := m.Update(commands.LoadCategoryProductsPageMsg{CategoryID: 1, CategoryName: "Test", APIEndpoint: "test/ep", Page: 2, PerPage: 5})
+		updatedModel, cmd := m.Update(commands.LoadCategoryProductsPageMsg{CategoryID: 1, CategoryName: "Test", Page: 2, PerPage: 5, NavGen: 1})
 		m = updatedModel.(hopt.MainModel)
 
 		is.Equal(m.Loading, true)
@@ -289,7 +295,7 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		// Initial transition to LatestView
 		updatedModel, _ := m.Update(defaultview.StartLoadingLatestMsg{})
 		m = updatedModel.(hopt.MainModel)
-		updatedModel, _ = m.Update(commands.LatestResponseMsg{Products: &commands.Products{{ID: 1}}, TotalItems: 10, TotalPages: 1})
+		updatedModel, _ = m.Update(commands.LatestResponseMsg{Products: &commands.Products{{ID: 1}}, TotalItems: 10, TotalPages: 1, RequestID: 1})
 		m = updatedModel.(hopt.MainModel)
 
 		initialPreviousViewsLen := len(m.PreviousViews)
@@ -299,15 +305,11 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		// Note: This is tricky as the model itself is a struct, so CurrentView holds a copy.
 		// A better check is if the fields within m.LatestModel are updated.
 
-		productsPage2 := &commands.Products{{ID: 2, Title: struct {
-			Rendered string `json:"rendered"`
-		}{Rendered: "Beer Page 2"}}}
-		msg := commands.LatestResponseMsg{Products: productsPage2, TotalItems: 20, TotalPages: 2, Width: 80, Height: 24}
+		productsPage2 := &commands.Products{{ID: 2, Title: "Beer Page 2"}}
+		msg := commands.LatestResponseMsg{Products: productsPage2, TotalItems: 20, TotalPages: 2, Width: 80, Height: 24, RequestID: 1}
 
-		// Capture current LatestModel's CurrentPage before this update for comparison if it's changed by the Update call
-		// This relies on LatestModel.Update correctly setting these from the msg.
-		// Let's assume for this test LatestModel.Update updates its own fields from msg.
-
+		// Simulate a page-change load being in-flight before the response arrives
+		m.Loading = true
 		updatedModel, _ = m.Update(msg)
 		m = updatedModel.(hopt.MainModel)
 
@@ -323,12 +325,13 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		is := is.New(t)
 		m := hopt.InitialModel()
 
-		// Initial transition to CategoryProductsView for CategoryID 123
-		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 123, CategoryName: "Test Cat", APIEndpoint: "test/ep"})
+		// Initial transition to CategoryProductsView for CategoryID 123 (requires CategoriesView first)
+		m.State = hopt.CategoriesView
+		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 123, CategoryName: "Test Cat"})
 		m = updatedModel.(hopt.MainModel)
 		updatedModel, _ = m.Update(commands.ProductsForCategoryResponseMsg{
-			CategoryID: 123, CategoryName: "Test Cat", APIEndpoint: "test/ep",
-			Products: &commands.Products{{ID: 1}}, TotalItems: 10, TotalPages: 1,
+			CategoryID: 123, CategoryName: "Test Cat",
+			Products: &commands.Products{{ID: 1}}, TotalItems: 10, TotalPages: 1, RequestID: 1,
 		})
 		m = updatedModel.(hopt.MainModel)
 
@@ -336,9 +339,11 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 
 		productsPage2 := &commands.Products{{ID: 2}}
 		msg := commands.ProductsForCategoryResponseMsg{
-			CategoryID: 123, CategoryName: "Test Cat", APIEndpoint: "test/ep",
-			Products: productsPage2, TotalItems: 20, TotalPages: 2, Width: 80, Height: 24,
+			CategoryID: 123, CategoryName: "Test Cat",
+			Products: productsPage2, TotalItems: 20, TotalPages: 2, Width: 80, Height: 24, RequestID: 1,
 		}
+		// Simulate a page-change load being in-flight before the response arrives
+		m.Loading = true
 		updatedModel, _ = m.Update(msg)
 		m = updatedModel.(hopt.MainModel)
 
@@ -355,24 +360,26 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		is := is.New(t)
 		m := hopt.InitialModel()
 
-		// Setup initial state: in CategoryProductsView for "Old Cat"
-		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 111, CategoryName: "Old Cat", APIEndpoint: "old/ep"})
+		// Setup initial state: in CategoryProductsView for "Old Cat" (requires CategoriesView first)
+		m.State = hopt.CategoriesView
+		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 111, CategoryName: "Old Cat"})
 		m = updatedModel.(hopt.MainModel)
 		updatedModel, _ = m.Update(commands.ProductsForCategoryResponseMsg{
-			CategoryID: 111, CategoryName: "Old Cat", APIEndpoint: "old/ep",
-			Products: &commands.Products{{ID: 1}}, TotalItems: 5, TotalPages: 1,
+			CategoryID: 111, CategoryName: "Old Cat",
+			Products: &commands.Products{{ID: 1}}, TotalItems: 5, TotalPages: 1, RequestID: 1,
 		})
 		m = updatedModel.(hopt.MainModel)
 		is.Equal(m.CategoryProductsModel.CategoryID(), 111) // Pre-condition check, use getter
 
 		initialPreviousViewsLen := len(m.PreviousViews)
 
-		// Action: Dispatch response for a *different* category
+		// Action: Dispatch response for a *different* category (simulating a new load in-flight)
 		newCategoryProducts := &commands.Products{{ID: 100}}
 		msg := commands.ProductsForCategoryResponseMsg{
-			CategoryID: 999, CategoryName: "New Cat", APIEndpoint: "new/ep",
-			Products: newCategoryProducts, TotalItems: 10, TotalPages: 1, Width: 80, Height: 24,
+			CategoryID: 999, CategoryName: "New Cat",
+			Products: newCategoryProducts, TotalItems: 10, TotalPages: 1, Width: 80, Height: 24, RequestID: 1,
 		}
+		m.Loading = true
 		updatedModel, _ = m.Update(msg)
 		m = updatedModel.(hopt.MainModel)
 
@@ -383,5 +390,373 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		is.Equal(len(m.PreviousViews), initialPreviousViewsLen+1)   // Stack should grow
 		_, ok := m.CurrentView.(categoryproducts.Model)
 		is.True(ok) // Corrected type assertion
+	})
+
+	t.Run("'h' key does not leak into restored view", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+
+		// Place a counting stub as the previous view to restore
+		stub := countingModel{}
+		m.PreviousViews = []tea.Model{stub}
+		m.State = hopt.LatestView // simulate being in a forward view
+
+		// Press 'h' to pop back to the stub
+		updatedModel, _ := m.Update(tea.KeyPressMsg{Code: 'h', Text: "h"})
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(len(m.PreviousViews), 0)
+
+		restoredStub, ok := m.CurrentView.(countingModel)
+		is.True(ok)
+
+		// Width=0 and Height=0 in tests, so the WindowSizeMsg guard won't fire.
+		// The stub must have received no messages at all.
+		is.Equal(len(restoredStub.msgs), 0)
+	})
+
+	t.Run("'left' key does not leak into restored view", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+
+		stub := countingModel{}
+		m.PreviousViews = []tea.Model{stub}
+		m.State = hopt.LatestView
+
+		updatedModel, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(len(m.PreviousViews), 0)
+
+		restoredStub, ok := m.CurrentView.(countingModel)
+		is.True(ok)
+
+		// Width=0 and Height=0 in tests, so the WindowSizeMsg guard won't fire.
+		is.Equal(len(restoredStub.msgs), 0)
+	})
+
+	t.Run("back nav resends WindowSizeMsg when dimensions are set", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+		m.Width = 100
+		m.Height = 50
+
+		stub := countingModel{}
+		m.PreviousViews = []tea.Model{stub}
+		m.State = hopt.LatestView
+
+		updatedModel, _ := m.Update(tea.KeyPressMsg{Code: 'h', Text: "h"})
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(len(m.PreviousViews), 0)
+
+		restoredStub, ok := m.CurrentView.(countingModel)
+		is.True(ok)
+
+		is.Equal(len(restoredStub.msgs), 1)
+		wsMsg, ok := restoredStub.msgs[0].(tea.WindowSizeMsg)
+		is.True(ok)
+		is.Equal(wsMsg.Width, 100)
+		is.Equal(wsMsg.Height, 50)
+	})
+
+	t.Run("back nav syncs typed CategoryProductsModel field with resized CurrentView", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+		m.Width = 100
+		m.Height = 50
+
+		// Navigate back to CategoryProductsView: put CategoryProductsModel in PreviousViews.
+		cpm := categoryproducts.NewModel("TestCat", 42)
+		m.CategoryProductsModel = cpm
+		m.PreviousViews = []tea.Model{cpm}
+		m.State = hopt.ProductView // current state we're navigating away from
+
+		updatedModel, _ := m.Update(tea.KeyPressMsg{Code: 'h', Text: "h"})
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.State, hopt.CategoryProductsView)
+		is.Equal(len(m.PreviousViews), 0)
+
+		// CurrentView must be a categoryproducts.Model after back-nav.
+		cvTyped, ok := m.CurrentView.(categoryproducts.Model)
+		is.True(ok)
+
+		// The resize was applied to CurrentView.
+		is.True(cvTyped.List.Width() > 0)
+
+		// The typed field must be in sync with CurrentView after the resize.
+		// list.Model contains function fields that reflect.DeepEqual treats as unequal,
+		// so compare the key observable dimensions rather than the whole struct.
+		is.Equal(m.CategoryProductsModel.List.Width(), cvTyped.List.Width())
+		is.Equal(m.CategoryProductsModel.List.Height(), cvTyped.List.Height())
+	})
+
+
+	t.Run("typed LatestModel field stays in sync with CurrentView after key update", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+		m.State = hopt.LatestView
+		m.LatestModel = latest.NewLatestModel()
+		m.LatestModel.CurrentPage = 1
+		m.CurrentView = m.LatestModel
+		m.Loading = false
+
+		updatedModel, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+		m = updatedModel.(hopt.MainModel)
+
+		latestFromView, ok := m.CurrentView.(latest.LatestModel)
+		is.True(ok)
+		is.Equal(m.LatestModel.CurrentPage, latestFromView.CurrentPage)
+		is.Equal(m.LatestModel.TotalPages, latestFromView.TotalPages)
+		is.Equal(m.LatestModel.PerPage, latestFromView.PerPage)
+	})
+
+	t.Run("ordinary key calls CurrentView.Update exactly once", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+
+		stub := countingModel{}
+		m.CurrentView = stub
+		m.Loading = false
+
+		updatedModel, _ := m.Update(tea.KeyPressMsg{Code: 'j', Text: "j"})
+		m = updatedModel.(hopt.MainModel)
+
+		restoredStub, ok := m.CurrentView.(countingModel)
+		is.True(ok)
+		is.Equal(len(restoredStub.msgs), 1)
+	})
+
+	t.Run("Enter on LatestView transitions to ProductView", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+
+		// Load into LatestView with one product (requestID becomes 1 after StartLoadingLatestMsg)
+		updatedModel, _ := m.Update(defaultview.StartLoadingLatestMsg{})
+		m = updatedModel.(hopt.MainModel)
+
+		products := &commands.Products{{
+			ID:          1,
+			Title:       "Test Beer",
+			Description: "A tasty sample beer description.",
+		}}
+		updatedModel, _ = m.Update(commands.LatestResponseMsg{
+			Products: products, Width: 80, Height: 24, RequestID: 1,
+		})
+		m = updatedModel.(hopt.MainModel)
+		is.Equal(m.State, hopt.LatestView)
+
+		// Press Enter — LatestModel returns HandleDisplayProduct as a cmd
+		updatedModel, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+		m = updatedModel.(hopt.MainModel)
+		is.True(cmd != nil)
+
+		// Execute the cmd to obtain the ProductsMsg, then feed it back
+		if cmd != nil {
+			productsMsg := cmd()
+			updatedModel, _ = m.Update(productsMsg)
+			m = updatedModel.(hopt.MainModel)
+		}
+
+		is.Equal(m.State, hopt.ProductView)
+	})
+
+	t.Run("h key clears ErrMsg even when PreviousViews is empty", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+		m.ErrMsg = "network error"
+		// PreviousViews is empty by default
+
+		updatedModel, _ := m.Update(tea.KeyPressMsg{Code: 'h', Text: "h"})
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.ErrMsg, "")
+		is.Equal(m.State, hopt.DefaultView)
+	})
+
+	t.Run("ProductsMsg ignored when not on list view", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+		// State is DefaultView — neither LatestView nor CategoryProductsView
+		prod := &commands.Product{ID: 1, Title: "Test Beer"}
+		updatedModel, _ := m.Update(commands.ProductsMsg{Product: prod})
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.State, hopt.DefaultView) // State must not change
+	})
+
+	t.Run("LoadLatestPageMsg ignored when not on LatestView", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+		// State is DefaultView — not LatestView
+
+		updatedModel, _ := m.Update(commands.LoadLatestPageMsg{Page: 2, PerPage: 5})
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.State, hopt.DefaultView) // State must not change
+		is.Equal(m.Loading, false)           // Must not start loading
+	})
+
+	t.Run("StartLoadingProductsForCategoryMsg ignored when not on CategoriesView", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+		// State is DefaultView — not CategoriesView
+
+		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 1, CategoryName: "Test"})
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.State, hopt.DefaultView) // State must not change
+		is.Equal(m.Loading, false)           // Must not start loading
+	})
+
+	t.Run("LoadCategoryProductsPageMsg ignored when not on CategoryProductsView", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+		// State is DefaultView — not CategoryProductsView
+
+		updatedModel, _ := m.Update(commands.LoadCategoryProductsPageMsg{CategoryID: 1, CategoryName: "Test", Page: 2, PerPage: 5})
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.State, hopt.DefaultView) // State must not change
+		is.Equal(m.Loading, false)           // Must not start loading
+	})
+
+	t.Run("ProductsMsg with stale NavGen is dropped even when state matches", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+
+		// Get to LatestView (requestID becomes 1 after StartLoadingLatestMsg)
+		updatedModel, _ := m.Update(defaultview.StartLoadingLatestMsg{})
+		m = updatedModel.(hopt.MainModel)
+		updatedModel, _ = m.Update(commands.LatestResponseMsg{Products: &commands.Products{}, RequestID: 1})
+		m = updatedModel.(hopt.MainModel)
+		is.Equal(m.State, hopt.LatestView) // Pre-condition: in LatestView
+
+		// Send ProductsMsg with stale NavGen (0 != mm.requestID which is 1)
+		prod := &commands.Product{ID: 1, Title: "Stale Beer"}
+		updatedModel, _ = m.Update(commands.ProductsMsg{Product: prod, NavGen: 0})
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.State, hopt.LatestView) // Must not transition to ProductView
+	})
+
+	t.Run("LoadLatestPageMsg with stale NavGen is dropped", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+
+		// Get to LatestView (requestID becomes 1)
+		updatedModel, _ := m.Update(defaultview.StartLoadingLatestMsg{})
+		m = updatedModel.(hopt.MainModel)
+		updatedModel, _ = m.Update(commands.LatestResponseMsg{Products: &commands.Products{}, RequestID: 1})
+		m = updatedModel.(hopt.MainModel)
+		is.Equal(m.State, hopt.LatestView) // Pre-condition: in LatestView
+
+		// Send LoadLatestPageMsg with stale NavGen (0 != mm.requestID which is 1)
+		updatedModel, _ = m.Update(commands.LoadLatestPageMsg{Page: 2, PerPage: 5, NavGen: 0})
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.State, hopt.LatestView) // State must not change
+		is.Equal(m.Loading, false)          // Must not start loading
+	})
+
+	t.Run("CategoriesResponseMsg re-dispatches WindowSizeMsg to new view", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+		m.Width = 100
+		m.Height = 50
+
+		updatedModel, _ := m.Update(defaultview.StartLoadingCategoriesMsg{})
+		m = updatedModel.(hopt.MainModel)
+
+		categoriesData := &commands.Categories{{ID: 1, Name: "Test Category"}}
+		msg := commands.CategoriesResponseMsg{Categories: categoriesData, RequestID: 1}
+		updatedModel, _ = m.Update(msg)
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.State, hopt.CategoriesView)
+
+		cvTyped, ok := m.CurrentView.(categories.Model)
+		is.True(ok)
+		is.True(cvTyped.List.Width() > 0)
+		is.Equal(m.CategoriesModel.List.Width(), cvTyped.List.Width())
+		is.Equal(m.CategoriesModel.List.Height(), cvTyped.List.Height())
+	})
+
+	t.Run("ProductsForCategoryResponseMsg re-dispatches WindowSizeMsg to new view", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+		m.Width = 100
+		m.Height = 50
+		m.State = hopt.CategoriesView
+
+		updatedModel, _ := m.Update(commands.StartLoadingProductsForCategoryMsg{CategoryID: 1, CategoryName: "Test"})
+		m = updatedModel.(hopt.MainModel)
+
+		products := &commands.Products{{ID: 1, Title: "Test Beer in Category"}}
+		msg := commands.ProductsForCategoryResponseMsg{Products: products, CategoryID: 1, CategoryName: "Test", RequestID: 1}
+		updatedModel, _ = m.Update(msg)
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.State, hopt.CategoryProductsView)
+
+		cvTyped, ok := m.CurrentView.(categoryproducts.Model)
+		is.True(ok)
+		is.True(cvTyped.List.Width() > 0)
+		is.Equal(m.CategoryProductsModel.List.Width(), cvTyped.List.Width())
+		is.Equal(m.CategoryProductsModel.List.Height(), cvTyped.List.Height())
+	})
+
+	t.Run("LoadLatestPageMsg corrects CurrentPage after optimistic double-advance", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+
+		// Get to LatestView (requestID becomes 1 after StartLoadingLatestMsg)
+		updatedModel, _ := m.Update(defaultview.StartLoadingLatestMsg{})
+		m = updatedModel.(hopt.MainModel)
+		updatedModel, _ = m.Update(commands.LatestResponseMsg{
+			Products: &commands.Products{}, TotalItems: 30, TotalPages: 3, RequestID: 1,
+		})
+		m = updatedModel.(hopt.MainModel)
+		is.Equal(m.State, hopt.LatestView)
+
+		// Simulate the double-advance: user pressed 'n' twice quickly, so the optimistic
+		// CurrentPage jumped to 3 even though we're only requesting page 2.
+		m.LatestModel.CurrentPage = 3
+		m.CurrentView = m.LatestModel
+
+		// First LoadLatestPageMsg (Page:2, NavGen:1) arrives
+		updatedModel, _ = m.Update(commands.LoadLatestPageMsg{Page: 2, PerPage: 10, NavGen: 1})
+		m = updatedModel.(hopt.MainModel)
+
+		// The fix must correct CurrentPage to what is actually being fetched
+		is.Equal(m.LatestModel.CurrentPage, 2)
+		cvTyped, ok := m.CurrentView.(latest.LatestModel)
+		is.True(ok)
+		is.Equal(cvTyped.CurrentPage, 2)
+	})
+
+	t.Run("ProductsMsg re-dispatches WindowSizeMsg to ProductModel", func(t *testing.T) {
+		is := is.New(t)
+		m := hopt.InitialModel()
+		m.Width = 100
+		m.Height = 50
+
+		// Get to LatestView (requestID becomes 1)
+		updatedModel, _ := m.Update(defaultview.StartLoadingLatestMsg{})
+		m = updatedModel.(hopt.MainModel)
+		products := &commands.Products{{ID: 1, Title: "Test Beer", Description: "A tasty sample beer."}}
+		updatedModel, _ = m.Update(commands.LatestResponseMsg{Products: products, RequestID: 1})
+		m = updatedModel.(hopt.MainModel)
+		is.Equal(m.State, hopt.LatestView)
+
+		// Send ProductsMsg with matching NavGen (requestID is 1 after StartLoadingLatestMsg)
+		prod := &commands.Product{ID: 1, Title: "Test Beer"}
+		updatedModel, _ = m.Update(commands.ProductsMsg{Product: prod, NavGen: 1})
+		m = updatedModel.(hopt.MainModel)
+
+		is.Equal(m.State, hopt.ProductView)
+		is.True(m.ProductModel.Width > 0)
+		is.Equal(m.ProductModel.Width, 100)
 	})
 }

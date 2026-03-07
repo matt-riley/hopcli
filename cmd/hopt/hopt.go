@@ -66,6 +66,7 @@ type MainModel struct {
 	Width                 int
 	Height                int
 	ErrMsg                string // To store and display error messages
+	requestID             int    // Tracks the current in-flight request; used to discard stale responses
 }
 
 func InitialModel() MainModel {
@@ -78,7 +79,7 @@ func InitialModel() MainModel {
 	cm := categories.NewCategoriesModel()
 	// For cpm, categoryName and categoryID will be updated when a category is chosen.
 	// Initialize with placeholder values.
-	cpm := categoryproducts.NewModel("", 0, "") // Added empty apiEndpoint
+	cpm := categoryproducts.NewModel("", 0)
 	pm := productview.NewProductModel()
 
 	return MainModel{
@@ -104,6 +105,7 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 	var updatedViewModel tea.Model
+	handled := false
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -114,6 +116,9 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q":
 			return mm, tea.Quit
 		case "h", "left":
+			mm.Loading = false // cancel any in-flight load
+			mm.requestID++     // invalidate any in-flight request
+			mm.ErrMsg = ""     // always clear error on back-nav
 			if len(mm.PreviousViews) > 0 {
 				lastViewIndex := len(mm.PreviousViews) - 1
 				mm.CurrentView = mm.PreviousViews[lastViewIndex]
@@ -131,21 +136,51 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case productview.ProductModel:
 					mm.State = ProductView
 				}
-				mm.ErrMsg = ""
+
+				if mm.Width > 0 && mm.Height > 0 {
+					var resized tea.Model
+					var resizeCmd tea.Cmd
+					resized, resizeCmd = mm.CurrentView.Update(
+						tea.WindowSizeMsg{Width: mm.Width, Height: mm.Height})
+					mm.CurrentView = resized
+					cmds = append(cmds, resizeCmd)
+					switch v := mm.CurrentView.(type) {
+					case defaultview.DefaultModel:
+						mm.DefaultModel = v
+					case latest.LatestModel:
+						mm.LatestModel = v
+					case categories.Model:
+						mm.CategoriesModel = v
+					case categoryproducts.Model:
+						mm.CategoryProductsModel = v
+					case productview.ProductModel:
+						mm.ProductModel = v
+					}
+				}
 			}
+			return mm, tea.Batch(cmds...)
 		}
 	case defaultview.StartLoadingLatestMsg:
+		handled = true
 		mm.Loading = true
 		mm.ErrMsg = ""
+		mm.LatestModel.CurrentPage = 1
+		mm.requestID++
 		// Ensure initial load is page 1, use PerPage from the model (defaulted in NewLatestModel)
-		cmds = append(cmds, commands.HandleGetLatest(mm.Width, mm.Height, 1, mm.LatestModel.PerPage))
+		cmds = append(cmds, commands.HandleGetLatest(mm.Width, mm.Height, 1, mm.LatestModel.PerPage, mm.requestID))
 
 	case defaultview.StartLoadingCategoriesMsg:
+		handled = true
 		mm.Loading = true
 		mm.ErrMsg = ""
-		cmds = append(cmds, commands.HandleGetCategories(mm.Width, mm.Height))
+		mm.requestID++
+		cmds = append(cmds, commands.HandleGetCategories(mm.requestID))
 
 	case commands.LatestResponseMsg:
+		handled = true
+		if msg.RequestID != mm.requestID {
+			break // stale response from a cancelled or superseded request
+		}
 		mm.Loading = false
 		if msg.Err != nil {
 			mm.ErrMsg = msg.Err.Error()
@@ -161,45 +196,96 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			mm.LatestModel = updatedViewModel.(latest.LatestModel)
 			cmds = append(cmds, cmd)
 			mm.CurrentView = mm.LatestModel // Ensure CurrentView points to the updated model
+			if mm.Width > 0 && mm.Height > 0 {
+				resized, sizeCmd := mm.CurrentView.Update(tea.WindowSizeMsg{Width: mm.Width, Height: mm.Height})
+				mm.CurrentView = resized
+				cmds = append(cmds, sizeCmd)
+				switch v := mm.CurrentView.(type) {
+				case latest.LatestModel:
+					mm.LatestModel = v
+				}
+			}
 			mm.ErrMsg = ""
 		}
 
 	case commands.LoadLatestPageMsg: // New
+		handled = true
+		if msg.NavGen != mm.requestID {
+			break // stale message from a previous view visit
+		}
+		if mm.State != LatestView {
+			// Stale message: user navigated away before this cmd was delivered.
+			break
+		}
 		mm.Loading = true
 		mm.ErrMsg = ""
+		mm.requestID++
+		mm.LatestModel.CurrentPage = msg.Page
+		mm.CurrentView = mm.LatestModel
 		// The CurrentView is still LatestModel, so we don't push to PreviousViews
 		// We are just re-loading data for the current view type.
-		cmds = append(cmds, commands.HandleGetLatest(mm.Width, mm.Height, msg.Page, msg.PerPage))
+		cmds = append(cmds, commands.HandleGetLatest(mm.Width, mm.Height, msg.Page, msg.PerPage, mm.requestID))
 
 	case commands.CategoriesResponseMsg:
+		handled = true
+		if msg.RequestID != mm.requestID {
+			break // stale response from a cancelled or superseded request
+		}
 		mm.Loading = false
 		if msg.Err != nil {
 			mm.ErrMsg = msg.Err.Error()
 		} else {
+			// Sub-model sizing is handled by tea.WindowSizeMsg re-dispatch, not through
+			// this message; msg.Width and msg.Height are intentionally unpopulated.
 			updatedViewModel, cmd = mm.CategoriesModel.Update(msg)
 			mm.CategoriesModel = updatedViewModel.(categories.Model)
 			cmds = append(cmds, cmd)
 			mm.PreviousViews = append(mm.PreviousViews, mm.CurrentView)
 			mm.CurrentView = mm.CategoriesModel
 			mm.State = CategoriesView
+			if mm.Width > 0 && mm.Height > 0 {
+				resized, sizeCmd := mm.CurrentView.Update(tea.WindowSizeMsg{Width: mm.Width, Height: mm.Height})
+				mm.CurrentView = resized
+				cmds = append(cmds, sizeCmd)
+				switch v := mm.CurrentView.(type) {
+				case categories.Model:
+					mm.CategoriesModel = v
+				}
+			}
 			mm.ErrMsg = ""
 		}
 
 	case commands.StartLoadingProductsForCategoryMsg:
+		handled = true
+		if msg.NavGen != mm.requestID {
+			break // stale message from a previous view visit
+		}
+		if mm.State != CategoriesView {
+			// Stale message: user navigated away before this cmd was delivered.
+			break
+		}
 		mm.Loading = true
 		mm.ErrMsg = ""
+		mm.CategoryProductsModel.CurrentPage = 1
+		mm.requestID++
 		// Ensure initial load is page 1, use PerPage from the model (defaulted in NewCategoryProductsModel)
-		cmds = append(cmds, commands.HandleGetProductsByCategory(mm.Width, mm.Height, msg.CategoryID, msg.CategoryName, msg.APIEndpoint, 1, mm.CategoryProductsModel.PerPage))
+		cmds = append(cmds, commands.HandleGetProductsByCategory(msg.CategoryID, msg.CategoryName, 1, mm.CategoryProductsModel.PerPage, mm.requestID))
 
 	case commands.ProductsForCategoryResponseMsg:
+		handled = true
+		if msg.RequestID != mm.requestID {
+			break // stale response from a cancelled or superseded request
+		}
 		mm.Loading = false
 		if msg.Err != nil {
 			mm.ErrMsg = msg.Err.Error()
 		} else {
+			// Sub-model sizing is handled by tea.WindowSizeMsg re-dispatch, not through
+			// this message; msg.Width and msg.Height are intentionally unpopulated.
 			// If current state is not CategoryProductsView OR if the category ID differs,
 			// it's a new category product listing.
 			if mm.State != CategoryProductsView || mm.CategoryProductsModel.CategoryID() != msg.CategoryID { // Used getter
-				mm.CategoryProductsModel = categoryproducts.NewModel(msg.CategoryName, msg.CategoryID, msg.APIEndpoint)
+				mm.CategoryProductsModel = categoryproducts.NewModel(msg.CategoryName, msg.CategoryID)
 				mm.PreviousViews = append(mm.PreviousViews, mm.CurrentView)
 				mm.State = CategoryProductsView
 			}
@@ -208,17 +294,47 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			mm.CategoryProductsModel = updatedViewModel.(categoryproducts.Model)
 			cmds = append(cmds, cmd)
 			mm.CurrentView = mm.CategoryProductsModel
+			if mm.Width > 0 && mm.Height > 0 {
+				resized, sizeCmd := mm.CurrentView.Update(tea.WindowSizeMsg{Width: mm.Width, Height: mm.Height})
+				mm.CurrentView = resized
+				cmds = append(cmds, sizeCmd)
+				switch v := mm.CurrentView.(type) {
+				case categoryproducts.Model:
+					mm.CategoryProductsModel = v
+				}
+			}
 			mm.ErrMsg = ""
 		}
 
 	case commands.LoadCategoryProductsPageMsg: // New
+		handled = true
+		if msg.NavGen != mm.requestID {
+			break // stale message from a previous view visit
+		}
+		if mm.State != CategoryProductsView {
+			// Stale message: user navigated away before this cmd was delivered.
+			break
+		}
+		if msg.CategoryID != mm.CategoryProductsModel.CategoryID() {
+			break // stale message for a different category
+		}
 		mm.Loading = true
 		mm.ErrMsg = ""
+		mm.requestID++
+		mm.CategoryProductsModel.CurrentPage = msg.Page
+		mm.CurrentView = mm.CategoryProductsModel
 		// Similar to LoadLatestPageMsg, CurrentView is CategoryProductsModel.
-		cmds = append(cmds, commands.HandleGetProductsByCategory(mm.Width, mm.Height, msg.CategoryID, msg.CategoryName, msg.APIEndpoint, msg.Page, msg.PerPage))
+		cmds = append(cmds, commands.HandleGetProductsByCategory(msg.CategoryID, msg.CategoryName, msg.Page, msg.PerPage, mm.requestID))
 
 	case commands.ProductsMsg: // This is for displaying a single product
-		mm.Loading = false
+		handled = true
+		if msg.NavGen != mm.requestID {
+			break // stale message from a previous view visit
+		}
+		if mm.State != LatestView && mm.State != CategoryProductsView {
+			// Stale message: user navigated away before HandleDisplayProduct cmd was delivered.
+			break
+		}
 		if msg.Err != nil {
 			mm.ErrMsg = msg.Err.Error()
 		} else {
@@ -229,29 +345,40 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			mm.CurrentView = mm.ProductModel
 			mm.State = ProductView
 			mm.ErrMsg = ""
+			if mm.Width > 0 && mm.Height > 0 {
+				resized, sizeCmd := mm.CurrentView.Update(tea.WindowSizeMsg{Width: mm.Width, Height: mm.Height})
+				mm.CurrentView = resized
+				cmds = append(cmds, sizeCmd)
+				if pv, ok := mm.CurrentView.(productview.ProductModel); ok {
+					mm.ProductModel = pv
+				}
+			}
 		}
 	}
 
-	// Update current view & spinner if loading
-	// Only pass non-nil messages or messages the current view specifically handles
-	// This avoids passing spinner ticks or other messages to views not expecting them if not loading
-	if !mm.Loading {
-		var currentViewCmd tea.Cmd
-		mm.CurrentView, currentViewCmd = mm.CurrentView.Update(msg)
-		cmds = append(cmds, currentViewCmd)
-	}
-
-	if mm.Loading {
-		var spinCmd tea.Cmd
-		mm.Spinner, spinCmd = mm.Spinner.Update(msg) // Spinner needs ticks
-		cmds = append(cmds, spinCmd)
-	} else {
-		// If not loading, ensure current view is updated even if no specific msg type matched above
-		// This handles general key presses for list navigation within the current view
-		if _, ok := msg.(tea.KeyMsg); ok { // Only pass key messages if not loading and not handled above
+	if !handled {
+		if mm.Loading {
+			var spinCmd tea.Cmd
+			mm.Spinner, spinCmd = mm.Spinner.Update(msg)
+			cmds = append(cmds, spinCmd)
+		} else {
+			currentGen := mm.requestID
 			var currentViewCmd tea.Cmd
 			mm.CurrentView, currentViewCmd = mm.CurrentView.Update(msg)
-			cmds = append(cmds, currentViewCmd)
+			cmds = append(cmds, wrapChildCmd(currentViewCmd, currentGen))
+			// Sync back to typed fields
+			switch m := mm.CurrentView.(type) {
+			case defaultview.DefaultModel:
+				mm.DefaultModel = m
+			case latest.LatestModel:
+				mm.LatestModel = m
+			case categories.Model:
+				mm.CategoriesModel = m
+			case categoryproducts.Model:
+				mm.CategoryProductsModel = m
+			case productview.ProductModel:
+				mm.ProductModel = m
+			}
 		}
 	}
 
@@ -322,6 +449,38 @@ func (mm MainModel) View() tea.View {
 	v := tea.NewView(finalLayout)
 	v.AltScreen = true
 	return v
+}
+
+// wrapChildCmd stamps locally-generated navigation messages with the current
+// view generation so stale deliveries after back-navigation are dropped.
+func wrapChildCmd(cmd tea.Cmd, gen int) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		msg := cmd()
+		switch m := msg.(type) {
+		case commands.ProductsMsg:
+			m.NavGen = gen
+			return m
+		case commands.StartLoadingProductsForCategoryMsg:
+			m.NavGen = gen
+			return m
+		case commands.LoadLatestPageMsg:
+			m.NavGen = gen
+			return m
+		case commands.LoadCategoryProductsPageMsg:
+			m.NavGen = gen
+			return m
+		case tea.BatchMsg:
+			wrapped := make([]tea.Cmd, len(m))
+			for i, c := range m {
+				wrapped[i] = wrapChildCmd(c, gen)
+			}
+			return tea.BatchMsg(wrapped)
+		}
+		return msg
+	}
 }
 
 func Run() {

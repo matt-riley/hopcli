@@ -1,9 +1,8 @@
 package latest
 
 import (
-	"fmt" // Added for View() title
+	"fmt"
 	"html"
-	"strings"
 
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
@@ -86,24 +85,38 @@ func (lm LatestModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		var items []list.Item
 		for _, product := range *msg.Products {
-			unescapedTitle := html.UnescapeString(product.Title.Rendered)
-			brewery := unescapedTitle // Assuming brewery is derived from title for now
+			shortDesc := html.UnescapeString(product.ShortDescription)
+			if shortDesc == "" {
+				shortDesc = html.UnescapeString(product.Description) // fallback only
+			}
+			if len(shortDesc) > 150 {
+				shortDesc = shortDesc[:150] + "..."
+			}
+			processedDesc := shortDesc
 
-			processedDesc := html.UnescapeString(product.Description.Rendered)
-			if strings.HasPrefix(processedDesc, "%%%") {
-				processedDesc = processedDesc[3:]
-			} else if strings.HasPrefix(processedDesc, "%%") { // Handle cases with "%%"
-				processedDesc = processedDesc[2:]
-			} else if strings.HasPrefix(processedDesc, "%") { // Handle cases with "%"
-				processedDesc = processedDesc[1:]
+			formattedPrice := commands.FormatPrice(
+				product.Prices.Price,
+				product.Prices.CurrencyPrefix,
+				product.Prices.CurrencySuffix,
+				product.Prices.CurrencyMinorUnit,
+			)
+			onSaleMarker := ""
+			if product.OnSale {
+				onSaleMarker = " 🏷️"
 			}
 
-			// Optional: Truncate if too long, even after stripping prefixes
-			if len(processedDesc) > 150 { // Example max length for description
-				processedDesc = processedDesc[:150] + "..."
+			var desc string
+			if formattedPrice != "" {
+				desc = fmt.Sprintf("%s%s | %s", formattedPrice, onSaleMarker, processedDesc)
+			} else {
+				desc = processedDesc
 			}
 
-			items = append(items, LatestListItem{title: unescapedTitle, desc: processedDesc, brewery: brewery})
+			items = append(items, LatestListItem{
+				title:   html.UnescapeString(product.Title),
+				desc:    desc,
+				brewery: html.UnescapeString(product.Title),
+			})
 		}
 		lm.Choices.SetSize(msg.Width, msg.Height) // Use exported field
 		lm.Choices.SetItems(items)                // Use exported field

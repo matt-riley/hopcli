@@ -3,8 +3,6 @@ package productview
 import (
 	"fmt"
 	"html"
-	"strings"
-	"unicode"
 
 	tea "charm.land/bubbletea/v2"
 	md "github.com/JohannesKaufmann/html-to-markdown/v2"
@@ -18,6 +16,7 @@ type (
 		Title       string
 		Description string
 		URL         string
+		Price       string // formatted price string, e.g. "£4.20"; empty if unavailable
 	}
 	ProductModel struct {
 		Product Product
@@ -36,21 +35,32 @@ func (pm ProductModel) Init() tea.Cmd {
 
 func (pm ProductModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		pm.Width = msg.Width
+		pm.Height = msg.Height
+		return pm, nil
 	case commands.ProductsMsg:
 		if msg.Err != nil {
 			return pm, nil
 		}
-		md, err := md.ConvertString(msg.Product.Description.Rendered)
+		markdownDesc, err := md.ConvertString(msg.Product.Description)
 		if err != nil {
-			return pm, nil
+			markdownDesc = html.UnescapeString(msg.Product.Description)
 		}
-		splitString := strings.Split(md, "%")
-		formatted := fmt.Sprintf("%s\n\n%s", splitString[0], strings.TrimLeftFunc(splitString[1], unicode.IsSpace))
+
+		price := commands.FormatPrice(
+			msg.Product.Prices.Price,
+			msg.Product.Prices.CurrencyPrefix,
+			msg.Product.Prices.CurrencySuffix,
+			msg.Product.Prices.CurrencyMinorUnit,
+		)
+
 		pm.Width = msg.Width
 		pm.Product = Product{
-			Title:       html.UnescapeString(msg.Product.Title.Rendered),
-			Description: formatted,
+			Title:       html.UnescapeString(msg.Product.Title),
+			Description: markdownDesc,
 			URL:         msg.Product.Link,
+			Price:       price,
 		}
 		return pm, nil
 	}
@@ -65,7 +75,17 @@ func (pm ProductModel) View() tea.View {
 		return tea.NewView("")
 	}
 
-	txt, err := renderer.Render(fmt.Sprintf("# %s\n\n%s\n\n[LINK](%s)", pm.Product.Title, pm.Product.Description, pm.Product.URL))
+	var priceSection string
+	if pm.Product.Price != "" {
+		priceSection = fmt.Sprintf("**Price: %s**\n\n", pm.Product.Price)
+	}
+	txt, err := renderer.Render(fmt.Sprintf(
+		"# %s\n\n%s%s\n\n[View product](%s)",
+		pm.Product.Title,
+		priceSection,
+		pm.Product.Description,
+		pm.Product.URL,
+	))
 	if err != nil {
 		return tea.NewView("")
 	}

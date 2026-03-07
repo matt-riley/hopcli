@@ -3,7 +3,6 @@ package categoryproducts
 import (
 	"fmt"
 	"html"
-	"strings"
 
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
@@ -31,25 +30,23 @@ type Model struct {
 	categoryID   int
 	width        int
 	height       int
-	products     *commands.Products // Store the fetched products
-	CurrentPage  int                // New
-	PerPage      int                // New
-	TotalItems   int                // New
-	TotalPages   int                // New
-	apiEndpoint  string             // New: Store the API endpoint for this category
+	products    *commands.Products // Store the fetched products
+	CurrentPage int                // New
+	PerPage     int                // New
+	TotalItems  int                // New
+	TotalPages  int                // New
 }
 
-func NewModel(categoryName string, categoryID int, apiEndpoint string) Model {
+func NewModel(categoryName string, categoryID int) Model {
 	l := list.New([]list.Item{}, list.NewDefaultDelegate(), 0, 0)
 	l.SetShowPagination(true)
 	l.SetShowStatusBar(true)
 	return Model{
-		List:         l, // Use exported field
+		List:         l,
 		categoryName: categoryName,
 		categoryID:   categoryID,
-		apiEndpoint:  apiEndpoint, // Store the endpoint
 		CurrentPage:  1,
-		PerPage:      10, // Default items per page
+		PerPage:      10,
 	}
 }
 
@@ -85,27 +82,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		items := []list.Item{}
 		if m.products != nil {
 			for _, prod := range *m.products {
-				unescapedTitle := html.UnescapeString(prod.Title.Rendered)
-				// Create a short description, ensuring HTML is unescaped first
-				fullDesc := html.UnescapeString(prod.Description.Rendered)
-				var shortDesc string
-				if len(fullDesc) > 0 {
-					// Attempt to split by sentences, take the first.
-					// This is a simple approach; more robust HTML to plain text conversion might be needed.
-					sentences := strings.Split(fullDesc, ".")
-					shortDesc = sentences[0]
-					if len(sentences) > 1 { // Add ellipsis if there was more than one sentence
-						shortDesc += "."
-					}
+				formattedPrice := commands.FormatPrice(
+					prod.Prices.Price,
+					prod.Prices.CurrencyPrefix,
+					prod.Prices.CurrencySuffix,
+					prod.Prices.CurrencyMinorUnit,
+				)
+				onSaleMarker := ""
+				if prod.OnSale {
+					onSaleMarker = " 🏷️"
 				}
 
-				if len(shortDesc) > 100 { // Arbitrary length limit for display
-					shortDesc = shortDesc[:100] + "..."
+				shortDesc := html.UnescapeString(prod.ShortDescription)
+				if shortDesc == "" {
+					shortDesc = html.UnescapeString(prod.Description)
+				}
+
+				var desc string
+				if formattedPrice != "" {
+					desc = fmt.Sprintf("%s%s | %s", formattedPrice, onSaleMarker, shortDesc)
+				} else {
+					desc = shortDesc
 				}
 
 				items = append(items, CategoryProductListItem{
-					title:       unescapedTitle,
-					description: shortDesc,
+					title:       html.UnescapeString(prod.Title),
+					description: desc,
 					productData: prod,
 				})
 			}
@@ -139,7 +141,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return commands.LoadCategoryProductsPageMsg{
 						CategoryID:   m.categoryID,
 						CategoryName: m.categoryName,
-						APIEndpoint:  m.apiEndpoint, // Use stored apiEndpoint
 						Page:         m.CurrentPage,
 						PerPage:      m.PerPage,
 					}
@@ -152,7 +153,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return commands.LoadCategoryProductsPageMsg{
 						CategoryID:   m.categoryID,
 						CategoryName: m.categoryName,
-						APIEndpoint:  m.apiEndpoint, // Use stored apiEndpoint
 						Page:         m.CurrentPage,
 						PerPage:      m.PerPage,
 					}

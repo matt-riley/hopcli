@@ -1,7 +1,11 @@
----
+version: 2
+
+project_name: hopt
+
 before:
   hooks:
     - go mod tidy
+
 builds:
   - env:
       - CGO_ENABLED=0
@@ -9,19 +13,29 @@ builds:
       - linux
       - windows
       - darwin
-project_name: "hopt"
-brews:
+
+homebrew_casks:
   - repository:
       owner: matt-riley
       name: homebrew-tools
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Casks
     commit_author:
       name: Matt Riley
       email: matt@mattriley.me
     homepage: https://github.com/matt-riley/hopcli
     description: "A TUI to interact with The Hoptimist store"
+    url:
+      verified: github.com/matt-riley/hopcli
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/hopt"]
+          end
+
 archives:
-  - format: tar.gz
+  - formats: [tar.gz]
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
@@ -31,16 +45,20 @@ archives:
       {{- if .Arm }}v{{ .Arm }}{{ end }}
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
+
 checksum:
-  name_template: "checksums.txt"
+  name_template: checksums.txt
+
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
+
 changelog:
   sort: asc
   filters:
     exclude:
       - "^docs:"
       - "^test:"
+
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 # vim: set ts=2 sw=2 tw=0 fo=cnqoj

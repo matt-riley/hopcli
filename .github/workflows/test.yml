@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    uses: matt-riley/matt-riley-ci/.github/workflows/go-ci.yml@7bf33bf0eef269c4a4b1d85e1668dec14fb8ffff # v1
+    uses: matt-riley/matt-riley-ci/.github/workflows/go-ci.yml@098848d01b058526398113ee20eccadf30f4b881 # v1.9.2
     with:
       go-version-file: go.mod
       run-fmt: true

@@ -9,7 +9,7 @@ require (
 	charm.land/bubbletea/v2 v2.0.2
 	charm.land/lipgloss/v2 v2.0.0
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.0
-	github.com/charmbracelet/glamour v0.10.0
+	github.com/charmbracelet/glamour/v2 v2.0.0
 	github.com/matryer/is v1.4.1
 )
 

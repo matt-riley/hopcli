@@ -2,6 +2,7 @@ package productview_test
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -10,6 +11,16 @@ import (
 	"github.com/matt-riley/hopcli/internal/commands"
 	productview "github.com/matt-riley/hopcli/internal/product"
 )
+
+var (
+	oscSequenceRe = regexp.MustCompile(`\x1b\][^\x07]*\x07`)
+	csiSequenceRe = regexp.MustCompile(`\x1b\[[0-?]*[ -/]*[@-~]`)
+)
+
+func stripTerminalSequences(s string) string {
+	s = oscSequenceRe.ReplaceAllString(s, "")
+	return csiSequenceRe.ReplaceAllString(s, "")
+}
 
 func TestProductNewProductModel(t *testing.T) {
 	is := is.New(t)
@@ -98,13 +109,14 @@ func TestProductView_Rendering_WithPrice(t *testing.T) {
 	model.Width = 80
 
 	view := model.View()
+	plainContent := stripTerminalSequences(view.Content)
 
 	is.True(view.Content != "")
-	is.True(strings.Contains(view.Content, "My Product"))
-	is.True(strings.Contains(view.Content, "£4.20"))
-	is.True(strings.Contains(view.Content, "Some description."))
-	is.True(strings.Contains(view.Content, "View product"))
-	is.True(strings.Contains(view.Content, "example.com"))
+	is.True(strings.Contains(plainContent, "My Product"))
+	is.True(strings.Contains(plainContent, "£4.20"))
+	is.True(strings.Contains(plainContent, "Some description."))
+	is.True(strings.Contains(plainContent, "View product"))
+	is.True(strings.Contains(plainContent, "example.com"))
 }
 
 func TestProductView_Rendering_WithoutPrice(t *testing.T) {
@@ -119,8 +131,9 @@ func TestProductView_Rendering_WithoutPrice(t *testing.T) {
 	model.Width = 80
 
 	view := model.View()
+	plainContent := stripTerminalSequences(view.Content)
 
 	is.True(view.Content != "")
-	is.True(strings.Contains(view.Content, "Free Product"))
-	is.True(!strings.Contains(view.Content, "Price:"))
+	is.True(strings.Contains(plainContent, "Free Product"))
+	is.True(!strings.Contains(plainContent, "Price:"))
 }

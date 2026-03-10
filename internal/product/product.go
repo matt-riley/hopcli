@@ -5,8 +5,8 @@ import (
 	"html"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/glamour/v2"
 	md "github.com/JohannesKaufmann/html-to-markdown/v2"
-	"github.com/charmbracelet/glamour"
 
 	"github.com/matt-riley/hopcli/internal/commands"
 )
@@ -69,7 +69,8 @@ func (pm ProductModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (pm ProductModel) View() tea.View {
 	renderer, err := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(), glamour.WithWordWrap((pm.Width/3)*2),
+		glamour.WithStandardStyle("dark"),
+		glamour.WithWordWrap((pm.Width/3)*2),
 	)
 	if err != nil {
 		return tea.NewView("")

@@ -14,25 +14,17 @@ builds:
       - windows
       - darwin
 
-homebrew_casks:
+brews:
   - repository:
       owner: matt-riley
       name: homebrew-tools
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    directory: Casks
+    directory: Formula
     commit_author:
       name: Matt Riley
       email: matt@mattriley.me
     homepage: https://github.com/matt-riley/hopcli
     description: "A TUI to interact with The Hoptimist store"
-    url:
-      verified: github.com/matt-riley/hopcli
-    hooks:
-      post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/hopt"]
-          end
 
 archives:
   - formats: [tar.gz]

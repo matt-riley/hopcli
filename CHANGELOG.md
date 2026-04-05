@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.2](https://github.com/matt-riley/hopcli/compare/v0.2.1...v0.2.2) (2026-04-05)
+
+
+### Bug Fixes
+
+* **deps:** update module charm.land/bubbles/v2 to v2.1.0 ([bce34f1](https://github.com/matt-riley/hopcli/commit/bce34f1323952a0f74afef4a97985669d9af4d13))
+* **deps:** update module charm.land/lipgloss/v2 to v2.0.2 ([f567eb7](https://github.com/matt-riley/hopcli/commit/f567eb7ad8e264b4354b9c1dc8e835a498053e06))
+* **deps:** update module github.com/charmbracelet/glamour to v2 ([#65](https://github.com/matt-riley/hopcli/issues/65)) ([685431a](https://github.com/matt-riley/hopcli/commit/685431a6e6312fa39ce770415d0f3e624d3d437e))
+* publish hopt to homebrew formula again ([d6119b5](https://github.com/matt-riley/hopcli/commit/d6119b5aeca2e74931a03dc46804ac6f010106b1))
+
 ## [0.2.1](https://github.com/matt-riley/hopcli/compare/v0.2.0...v0.2.1) (2026-03-10)
 
 

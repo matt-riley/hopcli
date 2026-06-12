@@ -149,7 +149,7 @@ func HandleGetLatest(w int, h int, page int, perPage int, requestID int) tea.Cmd
 				RequestID: requestID,
 			}
 		}
-		defer res.Body.Close()
+		defer func() { _ = res.Body.Close() }()
 
 		if res.StatusCode < 200 || res.StatusCode > 299 {
 			return LatestResponseMsg{
@@ -222,7 +222,7 @@ func HandleGetCategories(requestID int) tea.Cmd {
 		if err != nil {
 			return CategoriesResponseMsg{Err: err, RequestID: requestID}
 		}
-		defer res.Body.Close()
+		defer func() { _ = res.Body.Close() }()
 
 		if res.StatusCode < 200 || res.StatusCode > 299 {
 			return CategoriesResponseMsg{
@@ -266,7 +266,7 @@ func HandleGetProductsByCategory(categoryID int, categoryName string, page int, 
 		if err != nil {
 			return ProductsForCategoryResponseMsg{Err: err, CategoryName: categoryName, CategoryID: categoryID, RequestID: requestID}
 		}
-		defer res.Body.Close()
+		defer func() { _ = res.Body.Close() }()
 
 		if res.StatusCode < 200 || res.StatusCode > 299 {
 			return ProductsForCategoryResponseMsg{

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.2.3](https://github.com/matt-riley/hopcli/compare/v0.2.2...v0.2.3) (2026-06-12)
+
+
+### Bug Fixes
+
+* **ci:** bump go and x/net to resolve govulncheck findings ([d28c65c](https://github.com/matt-riley/hopcli/commit/d28c65c0f78fea4c097865cdb2ed1a00f57ee46d))
+* **ci:** bump go toolchain directive to 1.26.4 ([f110d8b](https://github.com/matt-riley/hopcli/commit/f110d8b24901bfd4751263384c904fbd8cfdab90))
+* **ci:** scope golangci-lint to a focused linter set ([5bddc54](https://github.com/matt-riley/hopcli/commit/5bddc54e18a5d6f34da1c8bd936ce89a9d605447))
+
 ## [0.2.2](https://github.com/matt-riley/hopcli/compare/v0.2.1...v0.2.2) (2026-04-05)
 
 

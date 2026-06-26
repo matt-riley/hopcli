@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.5](https://github.com/matt-riley/hopcli/compare/v0.2.4...v0.2.5) (2026-06-26)
+
+
+### Bug Fixes
+
+* **deps:** update module charm.land/glamour/v2 to v2.0.1 ([8f9038e](https://github.com/matt-riley/hopcli/commit/8f9038ecfe7fc6c73a4271fec4948650a73e8b16))
+* **deps:** update module github.com/johanneskaufmann/html-to-markdown/v2 to v2.5.2 ([#76](https://github.com/matt-riley/hopcli/issues/76)) ([2169953](https://github.com/matt-riley/hopcli/commit/2169953df9cf13c6972783312cab2d6021b4a749))
+
 ## [0.2.4](https://github.com/matt-riley/hopcli/compare/v0.2.3...v0.2.4) (2026-06-17)
 
 

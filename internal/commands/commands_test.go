@@ -56,7 +56,7 @@ func TestHandleGetLatest_Pagination(t *testing.T) {
 		},
 	}
 
-	cmd := commands.HandleGetLatest(80, 24, 2, 5, 1)
+	cmd := commands.HandleGetLatest(context.Background(), 80, 24, 2, 5, 1)
 	msg := cmd()
 
 	is.True(msg != nil)
@@ -101,7 +101,7 @@ func TestHandleGetProductsByCategory_Pagination(t *testing.T) {
 		},
 	}
 
-	cmd := commands.HandleGetProductsByCategory(expectedCatID, "Test Cat", 3, 8, 1)
+	cmd := commands.HandleGetProductsByCategory(context.Background(), expectedCatID, "Test Cat", 3, 8, 1)
 	msg := cmd()
 
 	is.True(msg != nil)
@@ -136,7 +136,7 @@ func TestHandleGetCategories_HappyPath(t *testing.T) {
 		},
 	}
 
-	cmd := commands.HandleGetCategories(1)
+	cmd := commands.HandleGetCategories(context.Background(), 1)
 	msg := cmd()
 
 	is.True(msg != nil)
@@ -162,7 +162,7 @@ func TestHandleGetLatest_HTTPErrorStatus(t *testing.T) {
 		},
 	}
 
-	cmd := commands.HandleGetLatest(80, 24, 1, 10, 1)
+	cmd := commands.HandleGetLatest(context.Background(), 80, 24, 1, 10, 1)
 	msg := cmd()
 
 	latestMsg, ok := msg.(commands.LatestResponseMsg)
@@ -182,7 +182,7 @@ func TestHandleGetLatest_ErrorResponseCarriesRequestID(t *testing.T) {
 		},
 	}
 
-	cmd := commands.HandleGetLatest(80, 24, 1, 10, 42)
+	cmd := commands.HandleGetLatest(context.Background(), 80, 24, 1, 10, 42)
 	msg := cmd()
 
 	latestMsg, ok := msg.(commands.LatestResponseMsg)

@@ -1,9 +1,11 @@
 package hopt
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -69,6 +71,27 @@ type MainModel struct {
 	Height                int
 	ErrMsg                string // To store and display error messages
 	requestID             int    // Tracks the current in-flight request; used to discard stale responses
+
+	// Context cancellation for aborting in-flight HTTP requests on back-navigation.
+	cancelFunc context.CancelFunc
+
+	// Categories cache: avoid re-fetching on subsequent visits to CategoriesView.
+	cachedCategories  *api.Categories
+	categoriesFetched bool
+
+	// Debounce state for rapid 'n'/'p' keypresses.
+	debouncePage         int
+	debounceCategoryID   int
+	debounceCategoryName string
+	debounceGen          int
+	debounceMode         string // "latest" or "category"
+}
+
+// debounceFireMsg is delivered when a debounce timer expires.
+// Only the latest generation is processed; stale ticks are dropped.
+type debounceFireMsg struct {
+	gen  int
+	mode string
 }
 
 func InitialModel() MainModel {
@@ -116,11 +139,17 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q":
+			if mm.cancelFunc != nil {
+				mm.cancelFunc()
+			}
 			return mm, tea.Quit
 		case "h", "left":
 			mm.Loading = false // cancel any in-flight load
-			mm.requestID++     // invalidate any in-flight request
-			mm.ErrMsg = ""     // always clear error on back-nav
+			if mm.cancelFunc != nil {
+				mm.cancelFunc() // abort in-flight HTTP request
+			}
+			mm.requestID++ // invalidate any in-flight request
+			mm.ErrMsg = "" // always clear error on back-nav
 			if len(mm.PreviousViews) > 0 {
 				lastViewIndex := len(mm.PreviousViews) - 1
 				mm.CurrentView = mm.PreviousViews[lastViewIndex]
@@ -161,6 +190,18 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			return mm, tea.Batch(cmds...)
+		case "r":
+			if mm.State == CategoriesView {
+				mm.categoriesFetched = false
+				mm.cachedCategories = nil
+				mm.Loading = true
+				mm.ErrMsg = ""
+				mm.requestID++
+				ctx, cancel := context.WithCancel(context.Background())
+				mm.cancelFunc = cancel
+				cmds = append(cmds, commands.HandleGetCategories(ctx, mm.requestID))
+				return mm, tea.Batch(cmds...)
+			}
 		}
 	case defaultview.StartLoadingLatestMsg:
 		handled = true
@@ -168,15 +209,31 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		mm.ErrMsg = ""
 		mm.LatestModel.CurrentPage = 1
 		mm.requestID++
+		mm.debounceGen = 0 // reset debounce on fresh navigation
+		ctx, cancel := context.WithCancel(context.Background())
+		mm.cancelFunc = cancel
 		// Ensure initial load is page 1, use PerPage from the model (defaulted in NewLatestModel)
-		cmds = append(cmds, commands.HandleGetLatest(mm.Width, mm.Height, 1, mm.LatestModel.PerPage, mm.requestID))
+		cmds = append(cmds, commands.HandleGetLatest(ctx, mm.Width, mm.Height, 1, mm.LatestModel.PerPage, mm.requestID))
 
 	case defaultview.StartLoadingCategoriesMsg:
 		handled = true
-		mm.Loading = true
 		mm.ErrMsg = ""
-		mm.requestID++
-		cmds = append(cmds, commands.HandleGetCategories(mm.requestID))
+		mm.debounceGen = 0 // reset debounce on fresh navigation
+		if mm.categoriesFetched && mm.cachedCategories != nil {
+			// Serve from cache — no HTTP request needed.
+			cmds = append(cmds, func() tea.Msg {
+				return commands.CategoriesResponseMsg{
+					Categories: mm.cachedCategories,
+					RequestID:  mm.requestID,
+				}
+			})
+		} else {
+			mm.Loading = true
+			mm.requestID++
+			ctx, cancel := context.WithCancel(context.Background())
+			mm.cancelFunc = cancel
+			cmds = append(cmds, commands.HandleGetCategories(ctx, mm.requestID))
+		}
 
 	case commands.LatestResponseMsg:
 		handled = true
@@ -208,15 +265,14 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				resized, sizeCmd := mm.CurrentView.Update(tea.WindowSizeMsg{Width: mm.Width, Height: mm.Height})
 				mm.CurrentView = resized
 				cmds = append(cmds, sizeCmd)
-				switch v := mm.CurrentView.(type) {
-				case latest.LatestModel:
+				if v, ok := mm.CurrentView.(latest.LatestModel); ok {
 					mm.LatestModel = v
 				}
 			}
 			mm.ErrMsg = ""
 		}
 
-	case commands.LoadLatestPageMsg: // New
+	case commands.LoadLatestPageMsg:
 		handled = true
 		if msg.NavGen != mm.requestID {
 			break // stale message from a previous view visit
@@ -225,14 +281,13 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Stale message: user navigated away before this cmd was delivered.
 			break
 		}
-		mm.Loading = true
-		mm.ErrMsg = ""
-		mm.requestID++
+		// Debounce: store the latest target page and (re)start a 200ms timer.
+		mm.debounceMode = "latest"
+		mm.debouncePage = msg.Page
+		mm.debounceGen++
 		mm.LatestModel.CurrentPage = msg.Page
 		mm.CurrentView = mm.LatestModel
-		// The CurrentView is still LatestModel, so we don't push to PreviousViews
-		// We are just re-loading data for the current view type.
-		cmds = append(cmds, commands.HandleGetLatest(mm.Width, mm.Height, msg.Page, msg.PerPage, mm.requestID))
+		cmds = append(cmds, debounceCmd(200*time.Millisecond, mm.debounceGen, "latest"))
 
 	case commands.CategoriesResponseMsg:
 		handled = true
@@ -260,12 +315,16 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				resized, sizeCmd := mm.CurrentView.Update(tea.WindowSizeMsg{Width: mm.Width, Height: mm.Height})
 				mm.CurrentView = resized
 				cmds = append(cmds, sizeCmd)
-				switch v := mm.CurrentView.(type) {
-				case categories.Model:
+				if v, ok := mm.CurrentView.(categories.Model); ok {
 					mm.CategoriesModel = v
 				}
 			}
 			mm.ErrMsg = ""
+			// Cache categories on successful fetch.
+			if msg.Categories != nil {
+				mm.cachedCategories = msg.Categories
+				mm.categoriesFetched = true
+			}
 		}
 
 	case commands.StartLoadingProductsForCategoryMsg:
@@ -281,8 +340,10 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		mm.ErrMsg = ""
 		mm.CategoryProductsModel.CurrentPage = 1
 		mm.requestID++
+		ctx, cancel := context.WithCancel(context.Background())
+		mm.cancelFunc = cancel
 		// Ensure initial load is page 1, use PerPage from the model (defaulted in NewCategoryProductsModel)
-		cmds = append(cmds, commands.HandleGetProductsByCategory(msg.CategoryID, msg.CategoryName, 1, mm.CategoryProductsModel.PerPage, mm.requestID))
+		cmds = append(cmds, commands.HandleGetProductsByCategory(ctx, msg.CategoryID, msg.CategoryName, 1, mm.CategoryProductsModel.PerPage, mm.requestID))
 
 	case commands.ProductsForCategoryResponseMsg:
 		handled = true
@@ -316,15 +377,14 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				resized, sizeCmd := mm.CurrentView.Update(tea.WindowSizeMsg{Width: mm.Width, Height: mm.Height})
 				mm.CurrentView = resized
 				cmds = append(cmds, sizeCmd)
-				switch v := mm.CurrentView.(type) {
-				case categoryproducts.Model:
+				if v, ok := mm.CurrentView.(categoryproducts.Model); ok {
 					mm.CategoryProductsModel = v
 				}
 			}
 			mm.ErrMsg = ""
 		}
 
-	case commands.LoadCategoryProductsPageMsg: // New
+	case commands.LoadCategoryProductsPageMsg:
 		handled = true
 		if msg.NavGen != mm.requestID {
 			break // stale message from a previous view visit
@@ -336,13 +396,15 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.CategoryID != mm.CategoryProductsModel.CategoryID() {
 			break // stale message for a different category
 		}
-		mm.Loading = true
-		mm.ErrMsg = ""
-		mm.requestID++
+		// Debounce: store the latest target page and (re)start a 200ms timer.
+		mm.debounceMode = "category"
+		mm.debouncePage = msg.Page
+		mm.debounceCategoryID = msg.CategoryID
+		mm.debounceCategoryName = msg.CategoryName
+		mm.debounceGen++
 		mm.CategoryProductsModel.CurrentPage = msg.Page
 		mm.CurrentView = mm.CategoryProductsModel
-		// Similar to LoadLatestPageMsg, CurrentView is CategoryProductsModel.
-		cmds = append(cmds, commands.HandleGetProductsByCategory(msg.CategoryID, msg.CategoryName, msg.Page, msg.PerPage, mm.requestID))
+		cmds = append(cmds, debounceCmd(200*time.Millisecond, mm.debounceGen, "category"))
 
 	case commands.ProductsMsg: // This is for displaying a single product
 		handled = true
@@ -377,6 +439,30 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					mm.ProductModel = pv
 				}
 			}
+		}
+
+	case debounceFireMsg:
+		handled = true
+		// Only process the latest generation; stale timers are dropped.
+		if msg.gen != mm.debounceGen {
+			break
+		}
+		// Guard against user having navigated away while timer was running.
+		if msg.mode == "latest" && mm.State != LatestView {
+			break
+		}
+		if msg.mode == "category" && mm.State != CategoryProductsView {
+			break
+		}
+		mm.Loading = true
+		mm.ErrMsg = ""
+		mm.requestID++
+		ctx, cancel := context.WithCancel(context.Background())
+		mm.cancelFunc = cancel
+		if msg.mode == "latest" {
+			cmds = append(cmds, commands.HandleGetLatest(ctx, mm.Width, mm.Height, mm.debouncePage, mm.LatestModel.PerPage, mm.requestID))
+		} else {
+			cmds = append(cmds, commands.HandleGetProductsByCategory(ctx, mm.debounceCategoryID, mm.debounceCategoryName, mm.debouncePage, mm.CategoryProductsModel.PerPage, mm.requestID))
 		}
 	}
 
@@ -419,7 +505,7 @@ func (mm MainModel) View() tea.View {
 	case LatestView, CategoryProductsView:
 		helpContent = "↑/↓: navigate | enter: select | h/←: back | n: next | p: prev | q: quit"
 	case CategoriesView: // Categories view does not have n/p for its own list
-		helpContent = "↑/↓: navigate | enter: select | h/←: back | q: quit"
+		helpContent = "↑/↓: navigate | enter: select | h/←: back | r: refresh | q: quit"
 	case ProductView:
 		helpContent = "h/←: back | q: quit"
 	default:
@@ -504,6 +590,17 @@ func wrapChildCmd(cmd tea.Cmd, gen int) tea.Cmd {
 			return tea.BatchMsg(wrapped)
 		}
 		return msg
+	}
+}
+
+// debounceCmd returns a tea.Cmd that fires a debounceFireMsg after d. Each call
+// to debounceCmd returns a new command with a generation counter; only the latest
+// generation's message is processed, effectively resetting the timer on every
+// rapid keypress.
+func debounceCmd(d time.Duration, gen int, mode string) tea.Cmd {
+	return func() tea.Msg {
+		<-time.After(d)
+		return debounceFireMsg{gen: gen, mode: mode}
 	}
 }
 

@@ -12,7 +12,7 @@ import (
 	"github.com/matt-riley/hopcli/internal/categories"
 	"github.com/matt-riley/hopcli/internal/categoryproducts" // Added import
 	"github.com/matt-riley/hopcli/internal/commands"
-	"github.com/matt-riley/hopcli/internal/default"
+	defaultview "github.com/matt-riley/hopcli/internal/default"
 	"github.com/matt-riley/hopcli/internal/latest" // Added import
 )
 
@@ -270,10 +270,17 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		updatedModel, cmd := m.Update(commands.LoadLatestPageMsg{Page: 2, PerPage: 5, NavGen: 1})
 		m = assertMainModel(t, updatedModel)
 
-		is.Equal(m.Loading, true)
-		is.True(cmd != nil)
+		// Debounce: Loading stays false until the debounce timer fires.
+		is.Equal(m.Loading, false)                              // debounce doesn't set loading immediately
+		is.True(cmd != nil)                                     // debounce timer is returned
 		is.Equal(m.State, hopt.LatestView)                      // State should remain LatestView
 		is.Equal(len(m.PreviousViews), initialPreviousViewsLen) // PreviousViews stack should not change
+		// Fire the debounce timer — this should set Loading=true and issue the API call.
+		debounceMsg := cmd()
+		updatedModel, apiCmd := m.Update(debounceMsg)
+		m = assertMainModel(t, updatedModel)
+		is.Equal(m.Loading, true)
+		is.True(apiCmd != nil) // HandleGetLatest cmd
 	})
 
 	t.Run("should handle LoadCategoryProductsPageMsg", func(t *testing.T) {
@@ -291,11 +298,19 @@ func TestMainModelUpdate_StateTransitions(t *testing.T) {
 		updatedModel, cmd := m.Update(commands.LoadCategoryProductsPageMsg{CategoryID: 1, CategoryName: "Test", Page: 2, PerPage: 5, NavGen: 1})
 		m = assertMainModel(t, updatedModel)
 
-		is.Equal(m.Loading, true)
-		is.True(cmd != nil)
+		// Debounce: Loading stays false until the debounce timer fires.
+		is.Equal(m.Loading, false)
+		is.True(cmd != nil)                                     // debounceCmd is not nil
 		is.Equal(m.State, hopt.CategoryProductsView)            // State should remain CategoryProductsView
 		is.Equal(len(m.PreviousViews), initialPreviousViewsLen) // PreviousViews stack should not change
 		is.Equal(m.CategoryProductsModel.CategoryID(), 1)       // Still the same category
+
+		// Fire the debounce timer — this should set Loading=true and issue the API call.
+		debounceMsg := cmd()
+		updatedModel, apiCmd := m.Update(debounceMsg)
+		m = assertMainModel(t, updatedModel)
+		is.Equal(m.Loading, true)
+		is.True(apiCmd != nil) // HandleGetProductsByCategory cmd
 	})
 
 	t.Run("should update LatestModel on LatestResponseMsg when already in LatestView", func(t *testing.T) {

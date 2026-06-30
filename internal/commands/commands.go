@@ -14,6 +14,9 @@ import (
 	"github.com/matt-riley/hopcli/internal/api"
 )
 
+// context.Background is used as the default when no cancellable context is provided.
+// Callers that need cancellation should pass a context.WithCancel-derived context.
+
 // Version is the current hopcli version. Override at build time with:
 //
 //	go build -ldflags "-X github.com/matt-riley/hopcli/internal/commands.Version=$(git describe --tags --always --dirty)"
@@ -106,9 +109,8 @@ type StartLoadingProductsForCategoryMsg struct {
 
 // ---- Command handlers ----
 
-func HandleGetLatest(w int, h int, page int, perPage int, requestID int) tea.Cmd {
+func HandleGetLatest(ctx context.Context, w int, h int, page int, perPage int, requestID int) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
 		products, pagination, err := ApiClient.FetchProducts(ctx, page, perPage)
 		if err != nil {
 			return LatestResponseMsg{
@@ -128,9 +130,8 @@ func HandleGetLatest(w int, h int, page int, perPage int, requestID int) tea.Cmd
 }
 
 // HandleGetCategories fetches product categories from the API.
-func HandleGetCategories(requestID int) tea.Cmd {
+func HandleGetCategories(ctx context.Context, requestID int) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
 		categories, err := ApiClient.FetchCategories(ctx)
 		if err != nil {
 			return CategoriesResponseMsg{Err: err, RequestID: requestID}
@@ -143,9 +144,8 @@ func HandleGetCategories(requestID int) tea.Cmd {
 }
 
 // HandleGetProductsByCategory fetches products for a given category from the API.
-func HandleGetProductsByCategory(categoryID int, categoryName string, page int, perPage int, requestID int) tea.Cmd {
+func HandleGetProductsByCategory(ctx context.Context, categoryID int, categoryName string, page int, perPage int, requestID int) tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
 		products, pagination, err := ApiClient.FetchProductsByCategory(ctx, categoryID, page, perPage)
 		if err != nil {
 			return ProductsForCategoryResponseMsg{

@@ -53,7 +53,10 @@ func TestProductUpdate_ProductsMsg_Success(t *testing.T) {
 
 	msg := commands.ProductsMsg{Product: sampleCmdProduct, Width: 80, Height: 24, Err: nil}
 	updatedModelTea, _ := model.Update(msg)
-	updatedModel := updatedModelTea.(productview.ProductModel)
+	updatedModel, ok := updatedModelTea.(productview.ProductModel)
+	if !ok {
+		t.Fatalf("expected productview.ProductModel, got %T", updatedModelTea)
+	}
 
 	is.Equal(updatedModel.Product.Title, "Test Product")
 	is.True(strings.Contains(updatedModel.Product.Description, "Hello"))
@@ -77,7 +80,10 @@ func TestProductUpdate_ProductsMsg_NoPercentInDescription(t *testing.T) {
 
 	msg := commands.ProductsMsg{Product: sampleCmdProduct, Width: 80, Err: nil}
 	updatedModelTea, _ := model.Update(msg)
-	updatedModel := updatedModelTea.(productview.ProductModel)
+	updatedModel, ok := updatedModelTea.(productview.ProductModel)
+	if !ok {
+		t.Fatalf("expected productview.ProductModel, got %T", updatedModelTea)
+	}
 
 	is.Equal(updatedModel.Product.Title, "No Percent Product")
 	is.True(strings.Contains(updatedModel.Product.Description, "no percent sign"))
@@ -90,7 +96,28 @@ func TestProductUpdate_ProductsMsg_Error(t *testing.T) {
 
 	msg := commands.ProductsMsg{Product: nil, Width: 80, Height: 24, Err: fmt.Errorf("API error")}
 	updatedModelTea, _ := model.Update(msg)
-	updatedModel := updatedModelTea.(productview.ProductModel)
+	updatedModel, ok := updatedModelTea.(productview.ProductModel)
+	if !ok {
+		t.Fatalf("expected productview.ProductModel, got %T", updatedModelTea)
+	}
+
+	is.Equal(updatedModel.Product.Title, originalProduct.Title)
+	is.Equal(updatedModel.Product.Description, originalProduct.Description)
+	is.Equal(updatedModel.Product.URL, originalProduct.URL)
+}
+
+func TestProductUpdate_ProductsMsg_NilProduct(t *testing.T) {
+	is := is.New(t)
+	model := productview.NewProductModel()
+	originalProduct := model.Product
+
+	// Nil Product with no error should not panic
+	msg := commands.ProductsMsg{Product: nil, Width: 80, Height: 24, Err: nil}
+	updatedModelTea, _ := model.Update(msg)
+	updatedModel, ok := updatedModelTea.(productview.ProductModel)
+	if !ok {
+		t.Fatalf("expected productview.ProductModel, got %T", updatedModelTea)
+	}
 
 	is.Equal(updatedModel.Product.Title, originalProduct.Title)
 	is.Equal(updatedModel.Product.Description, originalProduct.Description)

@@ -2,12 +2,14 @@ package hopt
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/matt-riley/hopcli/internal/api"
 	"github.com/matt-riley/hopcli/internal/categories"
 	"github.com/matt-riley/hopcli/internal/categoryproducts"
 	"github.com/matt-riley/hopcli/internal/commands"
@@ -72,7 +74,7 @@ type MainModel struct {
 func InitialModel() MainModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color(commands.SpinnerColor))
 
 	dm := defaultview.InitialModel()
 	lm := latest.NewLatestModel()
@@ -193,7 +195,13 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			// Update the existing (or newly created) LatestModel instance
 			updatedViewModel, cmd = mm.LatestModel.Update(msg)
-			mm.LatestModel = updatedViewModel.(latest.LatestModel)
+			if lm, ok := updatedViewModel.(latest.LatestModel); ok {
+				mm.LatestModel = lm
+			} else {
+				log.Printf("unexpected type from LatestModel.Update: %T", updatedViewModel)
+				mm.ErrMsg = "internal error: unexpected model type"
+				break
+			}
 			cmds = append(cmds, cmd)
 			mm.CurrentView = mm.LatestModel // Ensure CurrentView points to the updated model
 			if mm.Width > 0 && mm.Height > 0 {
@@ -235,10 +243,15 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Err != nil {
 			mm.ErrMsg = msg.Err.Error()
 		} else {
-			// Sub-model sizing is handled by tea.WindowSizeMsg re-dispatch, not through
-			// this message; msg.Width and msg.Height are intentionally unpopulated.
+			// Sub-model sizing is handled by tea.WindowSizeMsg re-dispatch.
 			updatedViewModel, cmd = mm.CategoriesModel.Update(msg)
-			mm.CategoriesModel = updatedViewModel.(categories.Model)
+			if cm, ok := updatedViewModel.(categories.Model); ok {
+				mm.CategoriesModel = cm
+			} else {
+				log.Printf("unexpected type from CategoriesModel.Update: %T", updatedViewModel)
+				mm.ErrMsg = "internal error: unexpected model type"
+				break
+			}
 			cmds = append(cmds, cmd)
 			mm.PreviousViews = append(mm.PreviousViews, mm.CurrentView)
 			mm.CurrentView = mm.CategoriesModel
@@ -280,8 +293,7 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Err != nil {
 			mm.ErrMsg = msg.Err.Error()
 		} else {
-			// Sub-model sizing is handled by tea.WindowSizeMsg re-dispatch, not through
-			// this message; msg.Width and msg.Height are intentionally unpopulated.
+			// Sub-model sizing is handled by tea.WindowSizeMsg re-dispatch.
 			// If current state is not CategoryProductsView OR if the category ID differs,
 			// it's a new category product listing.
 			if mm.State != CategoryProductsView || mm.CategoryProductsModel.CategoryID() != msg.CategoryID { // Used getter
@@ -291,7 +303,13 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			// Update the model (either newly created or existing)
 			updatedViewModel, cmd := mm.CategoryProductsModel.Update(msg)
-			mm.CategoryProductsModel = updatedViewModel.(categoryproducts.Model)
+			if cpm, ok := updatedViewModel.(categoryproducts.Model); ok {
+				mm.CategoryProductsModel = cpm
+			} else {
+				log.Printf("unexpected type from CategoryProductsModel.Update: %T", updatedViewModel)
+				mm.ErrMsg = "internal error: unexpected model type"
+				break
+			}
 			cmds = append(cmds, cmd)
 			mm.CurrentView = mm.CategoryProductsModel
 			if mm.Width > 0 && mm.Height > 0 {
@@ -339,7 +357,13 @@ func (mm MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			mm.ErrMsg = msg.Err.Error()
 		} else {
 			updatedViewModel, cmd = mm.ProductModel.Update(msg)
-			mm.ProductModel = updatedViewModel.(productview.ProductModel)
+			if pm, ok := updatedViewModel.(productview.ProductModel); ok {
+				mm.ProductModel = pm
+			} else {
+				log.Printf("unexpected type from ProductModel.Update: %T", updatedViewModel)
+				mm.ErrMsg = "internal error: unexpected model type"
+				break
+			}
 			cmds = append(cmds, cmd)
 			mm.PreviousViews = append(mm.PreviousViews, mm.CurrentView)
 			mm.CurrentView = mm.ProductModel
@@ -484,6 +508,14 @@ func wrapChildCmd(cmd tea.Cmd, gen int) tea.Cmd {
 }
 
 func Run() {
+	// Initialize the API client before the TUI starts.
+	if commands.ApiClient == nil {
+		commands.ApiClient = api.NewHTTPClientWithRetry(
+			commands.TheHoptimistBaseURL,
+			"hopcli/"+commands.Version,
+		)
+	}
+
 	model := InitialModel()
 	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {

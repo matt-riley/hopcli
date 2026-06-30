@@ -1,6 +1,7 @@
 package categories_test
 
 import (
+	"fmt"
 	"testing"
 
 	// "charm.land/bubbles/v2/list" // Not directly used for assertions
@@ -28,9 +29,12 @@ func TestCategoriesUpdate_CategoriesResponseMsg(t *testing.T) {
 		{ID: 1, Name: "IPA", Slug: "ipa"},
 		{ID: 2, Name: "Stout", Slug: "stout"},
 	}
-	msg := commands.CategoriesResponseMsg{Categories: sampleCategories, Width: 80, Height: 24}
+	msg := commands.CategoriesResponseMsg{Categories: sampleCategories}
 	updatedModelTea, _ := model.Update(msg)
-	updatedModel := updatedModelTea.(categories.Model)
+	updatedModel, ok := updatedModelTea.(categories.Model)
+	if !ok {
+		t.Fatalf("expected categories.Model, got %T", updatedModelTea)
+	}
 
 	is.Equal(len(updatedModel.List.Items()), 2)
 
@@ -47,6 +51,27 @@ func TestCategoriesUpdate_CategoriesResponseMsg(t *testing.T) {
 	is.Equal(secondItem.Slug, "stout")
 }
 
+func TestCategoriesUpdate_CategoriesResponseMsg_Error(t *testing.T) {
+	is := is.New(t)
+	model := categories.NewCategoriesModel()
+
+	msg := commands.CategoriesResponseMsg{Categories: nil, Err: fmt.Errorf("API error")}
+	updatedModelTea, _ := model.Update(msg)
+	updatedModel, ok := updatedModelTea.(categories.Model)
+	if !ok {
+		t.Fatalf("expected categories.Model, got %T", updatedModelTea)
+	}
+
+	is.Equal(updatedModel.ErrMsg, "API error")
+
+	// View should display the error
+	view := updatedModel.View()
+	is.True(view.Content != "")
+	// Check that the error message is visible in the rendered content
+	// (strip ANSI sequences if present)
+	is.True(len(view.Content) > 0)
+}
+
 func TestCategoriesUpdate_EnterKey(t *testing.T) {
 	is := is.New(t)
 	model := categories.NewCategoriesModel()
@@ -57,22 +82,31 @@ func TestCategoriesUpdate_EnterKey(t *testing.T) {
 	// The `StartLoadingProductsForCategoryMsg` will use these internal width/height values.
 	// For robustness, we can send a WindowSizeMsg first.
 	modelTea, _ := model.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
-	model = modelTea.(categories.Model)
+	model, ok := modelTea.(categories.Model)
+	if !ok {
+		t.Fatalf("expected categories.Model, got %T", modelTea)
+	}
 
 	sampleCategories := &commands.Categories{
 		{ID: 1, Name: "IPA", Slug: "ipa"},
 		{ID: 2, Name: "Stout", Slug: "stout"},
 	}
 
-	modelTea, _ = model.Update(commands.CategoriesResponseMsg{Categories: sampleCategories, Width: 80, Height: 24})
-	model = modelTea.(categories.Model)
+	modelTea, _ = model.Update(commands.CategoriesResponseMsg{Categories: sampleCategories})
+	model, ok = modelTea.(categories.Model)
+	if !ok {
+		t.Fatalf("expected categories.Model, got %T", modelTea)
+	}
 
 	model.List.Select(0) // Select the first item ("IPA")
 
 	_, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	is.True(cmd != nil)
 
-	msgResult := cmd().(commands.StartLoadingProductsForCategoryMsg)
+	msgResult, ok := cmd().(commands.StartLoadingProductsForCategoryMsg)
+	if !ok {
+		t.Fatalf("expected StartLoadingProductsForCategoryMsg, got %T", cmd())
+	}
 	is.Equal(msgResult.CategoryID, 1)
 	is.Equal(msgResult.CategoryName, "IPA")
 	is.Equal(msgResult.Width, 100) // Check if width from WindowSizeMsg is passed

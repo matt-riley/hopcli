@@ -2,7 +2,6 @@ package categoryproducts
 
 import (
 	"fmt"
-	"html"
 
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
@@ -13,28 +12,15 @@ import (
 
 var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
-// CategoryProductListItem defines a list item for products within a category.
-type CategoryProductListItem struct {
-	title       string
-	description string
-	productData commands.Product
-}
-
-func (i CategoryProductListItem) Title() string       { return i.title }
-func (i CategoryProductListItem) Description() string { return i.description }
-func (i CategoryProductListItem) FilterValue() string { return i.title }
-
 type Model struct {
+	commands.PaginatedModel
 	List         list.Model // Exported
 	categoryName string
 	categoryID   int
 	width        int
 	height       int
 	products     *commands.Products // Store the fetched products
-	CurrentPage  int                // New
-	PerPage      int                // New
-	TotalItems   int                // New
-	TotalPages   int                // New
+	ErrMsg       string             // error message to display in View()
 }
 
 func NewModel(categoryName string, categoryID int) Model {
@@ -42,11 +28,13 @@ func NewModel(categoryName string, categoryID int) Model {
 	l.SetShowPagination(true)
 	l.SetShowStatusBar(true)
 	return Model{
+		PaginatedModel: commands.PaginatedModel{
+			CurrentPage: 1,
+			PerPage:     10,
+		},
 		List:         l,
 		categoryName: categoryName,
 		categoryID:   categoryID,
-		CurrentPage:  1,
-		PerPage:      10,
 	}
 }
 
@@ -63,12 +51,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		docStyle.Width(m.width)
 		docStyle.Height(m.height)
-		m.List.SetSize(msg.Width-docStyle.GetHorizontalFrameSize(), msg.Height-docStyle.GetVerticalFrameSize()) // Use exported field
+		m.List.SetSize(msg.Width-docStyle.GetHorizontalFrameSize(), msg.Height-docStyle.GetVerticalFrameSize())
 		return m, nil
 
 	case commands.ProductsForCategoryResponseMsg:
-		if msg.Err != nil {
-			// Handle error - perhaps set a message on the model to display in View()
+		if err := commands.ResponseError(msg); err != nil {
+			m.ErrMsg = err.Error()
 			return m, nil
 		}
 		if msg.CategoryID != m.categoryID { // Ensure this message is for the current category
@@ -79,105 +67,72 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.TotalItems = msg.TotalItems
 		m.TotalPages = msg.TotalPages
 
+		// Set the list title here (pure View() — no side effects).
+		if m.TotalItems == 0 {
+			m.List.Title = fmt.Sprintf("Products in %s (No items found)", m.categoryName)
+		} else if m.TotalPages == 0 {
+			// Edge case: API says 0 pages but has items — treat as page 1.
+			m.List.Title = fmt.Sprintf("Products in %s (Page %d/%d)", m.categoryName, m.CurrentPage, 1)
+		} else {
+			m.List.Title = fmt.Sprintf("Products in %s (Page %d/%d)", m.categoryName, m.CurrentPage, m.TotalPages)
+		}
+
 		items := []list.Item{}
 		if m.products != nil {
 			for _, prod := range *m.products {
-				formattedPrice := commands.FormatPrice(
-					prod.Prices.Price,
-					prod.Prices.CurrencyPrefix,
-					prod.Prices.CurrencySuffix,
-					prod.Prices.CurrencyMinorUnit,
-				)
-				onSaleMarker := ""
-				if prod.OnSale {
-					onSaleMarker = " 🏷️"
-				}
-
-				shortDesc := commands.ExtractSummary(prod.Description)
-
-				var desc string
-				if formattedPrice != "" {
-					desc = fmt.Sprintf("%s%s | %s", formattedPrice, onSaleMarker, shortDesc)
-				} else {
-					desc = shortDesc
-				}
-
-				items = append(items, CategoryProductListItem{
-					title:       html.UnescapeString(prod.Title),
-					description: desc,
-					productData: prod,
-				})
+				items = append(items, commands.NewProductListItem(prod))
 			}
 		}
-		m.List.SetItems(items)                                                                              // Use exported field
-		m.List.SetFilteringEnabled(false)                                                                   // Use exported field
-		m.List.SetSize(m.width-docStyle.GetHorizontalFrameSize(), m.height-docStyle.GetVerticalFrameSize()) // Use exported field
+		m.List.SetItems(items)
+		m.List.SetFilteringEnabled(false)
+		m.List.SetSize(m.width-docStyle.GetHorizontalFrameSize(), m.height-docStyle.GetVerticalFrameSize())
 
 		// Update list paginator
-		m.List.Paginator.PerPage = m.PerPage      // Use exported field
+		m.List.Paginator.PerPage = m.PerPage
 		m.List.Paginator.Page = m.CurrentPage - 1 // list.Paginator is 0-indexed
 		m.List.Paginator.TotalPages = m.TotalPages
-		// No explicit command needed from this message handling itself for list updates.
 
 		return m, nil
 
 	case tea.KeyMsg:
+		// Check for 'n'/'p' navigation first
+		if pageChanged, newPage := m.PaginatedModel.UpdatePageNavigation(msg); pageChanged {
+			return m, func() tea.Msg {
+				return commands.LoadCategoryProductsPageMsg{
+					CategoryID:   m.categoryID,
+					CategoryName: m.categoryName,
+					Page:         newPage,
+					PerPage:      m.PerPage,
+				}
+			}
+		}
 		switch msg.String() {
 		case "enter":
-			if len(m.List.VisibleItems()) > 0 && m.List.Index() < len(*m.products) { // Use exported field
-				selectedItem, ok := m.List.SelectedItem().(CategoryProductListItem) // Use exported field
+			if len(m.List.VisibleItems()) > 0 && m.List.Index() < len(*m.products) {
+				selectedItem, ok := m.List.SelectedItem().(commands.ProductListItem)
 				if ok {
 					// Trigger displaying the product details
-					return m, commands.HandleDisplayProduct(m.width, m.height, selectedItem.productData)
-				}
-			}
-		case "n": // Next page
-			if m.CurrentPage < m.TotalPages {
-				m.CurrentPage++
-				return m, func() tea.Msg {
-					return commands.LoadCategoryProductsPageMsg{
-						CategoryID:   m.categoryID,
-						CategoryName: m.categoryName,
-						Page:         m.CurrentPage,
-						PerPage:      m.PerPage,
-					}
-				}
-			}
-		case "p": // Previous page
-			if m.CurrentPage > 1 {
-				m.CurrentPage--
-				return m, func() tea.Msg {
-					return commands.LoadCategoryProductsPageMsg{
-						CategoryID:   m.categoryID,
-						CategoryName: m.categoryName,
-						Page:         m.CurrentPage,
-						PerPage:      m.PerPage,
-					}
+					return m, commands.HandleDisplayProduct(m.width, m.height, selectedItem.ProductData())
 				}
 			}
 		}
 	}
 
 	var listCmd tea.Cmd
-	m.List, listCmd = m.List.Update(msg) // Use exported field
+	m.List, listCmd = m.List.Update(msg)
 	cmds = append(cmds, listCmd)
 
 	return m, tea.Batch(cmds...)
 }
 
 func (m Model) View() tea.View {
+	if m.ErrMsg != "" {
+		return tea.NewView(docStyle.Render("Error: " + m.ErrMsg))
+	}
 	if m.products == nil { // Check if products are loaded yet
 		return tea.NewView(docStyle.Render(fmt.Sprintf("Loading products for %s...", m.categoryName)))
 	}
-	if len(m.List.Items()) == 0 && m.TotalItems == 0 { // Check if there are genuinely no items ; Use exported field
-		m.List.Title = fmt.Sprintf("Products in %s (No items found)", m.categoryName) // Use exported field
-	} else {
-		m.List.Title = fmt.Sprintf("Products in %s (Page %d/%d)", m.categoryName, m.CurrentPage, m.TotalPages) // Use exported field
-		if m.TotalPages == 0 && m.TotalItems > 0 {                                                             // Edge case: API says 0 pages but has items
-			m.List.Title = fmt.Sprintf("Products in %s (Page %d/%d)", m.categoryName, m.CurrentPage, 1) // Use exported field
-		}
-	}
-	return tea.NewView(docStyle.Render(m.List.View())) // Use exported field
+	return tea.NewView(docStyle.Render(m.List.View()))
 }
 
 // CategoryID returns the category ID of the model.

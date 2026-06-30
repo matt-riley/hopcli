@@ -27,3 +27,25 @@ run = "golangci-lint run"
 [tasks.build]
 description = "Build the app"
 run = "go build ./..."
+
+[tasks."mod-verify"]
+description = "Verify module dependencies"
+run = "go mod verify"
+
+[tasks."mod-tidy-diff"]
+description = "Check go mod tidy is clean"
+run = "go mod tidy -diff"
+
+[tasks.coverage]
+description = "Run tests with coverage and enforce threshold"
+run = """
+go test -coverprofile=cover.out ./...
+go tool cover -func=cover.out
+COVERAGE=$(go tool cover -func=cover.out | grep total | awk '{print $3}' | sed 's/%//')
+THRESHOLD=70
+if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+  echo "ERROR: Coverage $COVERAGE% is below threshold $THRESHOLD%"
+  exit 1
+fi
+echo "Coverage $COVERAGE% meets threshold $THRESHOLD%"
+"""

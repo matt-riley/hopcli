@@ -41,7 +41,7 @@ func (lm LatestModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		// Check for 'n'/'p' navigation first
-		if pageChanged, newPage := lm.PaginatedModel.UpdatePageNavigation(msg); pageChanged {
+		if pageChanged, newPage := lm.UpdatePageNavigation(msg); pageChanged {
 			return lm, func() tea.Msg {
 				return commands.LoadLatestPageMsg{Page: newPage, PerPage: lm.PerPage}
 			}
@@ -65,12 +65,13 @@ func (lm LatestModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		lm.TotalPages = msg.TotalPages
 
 		// Set the list title here (pure View() — no side effects).
-		if lm.TotalItems == 0 {
+		switch {
+		case lm.TotalItems == 0:
 			lm.Choices.Title = "Latest Beers (No items found)"
-		} else if lm.TotalPages == 0 {
+		case lm.TotalPages == 0:
 			// Edge case: API says 0 pages but has items — treat as page 1.
 			lm.Choices.Title = fmt.Sprintf("Latest Beers (Page %d/%d)", lm.CurrentPage, 1)
-		} else {
+		default:
 			lm.Choices.Title = fmt.Sprintf("Latest Beers (Page %d/%d)", lm.CurrentPage, lm.TotalPages)
 		}
 

@@ -9,7 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/matryer/is"
 
-	"github.com/matt-riley/hopcli/internal/default" // To use defaultview.InitialModel, defaultview.DefaultModel, etc.
+	defaultview "github.com/matt-riley/hopcli/internal/default" // To use defaultview.InitialModel, defaultview.DefaultModel, etc.
 )
 
 func TestDefaultInitialModel(t *testing.T) {

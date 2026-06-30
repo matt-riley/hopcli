@@ -220,6 +220,13 @@ func NewHTTPClientWithRetry(baseURL, userAgent string) *HTTPClient {
 	}
 }
 
+// NewClient creates a new HTTP API client that satisfies the Client interface
+// with sensible defaults (no retry). It is the canonical constructor for
+// consumers that only depend on the Client interface.
+func NewClient(baseURL string) Client {
+	return NewHTTPClient(baseURL)
+}
+
 func (c *HTTPClient) httpClient() *http.Client {
 	if c.HTTPClient != nil {
 		return c.HTTPClient
@@ -290,14 +297,14 @@ func (c *HTTPClient) doRequest(ctx context.Context, urlStr string) (*http.Respon
 
 		// Retry on transient status codes.
 		if rc.isRetryableStatusCode(resp.StatusCode) {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			lastErr = fmt.Errorf("server returned status %d", resp.StatusCode)
 			continue
 		}
 
 		// Read the full body.
 		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		if err != nil {
 			if isRetryableError(err) {
 				lastErr = err

@@ -68,12 +68,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.TotalPages = msg.TotalPages
 
 		// Set the list title here (pure View() — no side effects).
-		if m.TotalItems == 0 {
+		switch {
+		case m.TotalItems == 0:
 			m.List.Title = fmt.Sprintf("Products in %s (No items found)", m.categoryName)
-		} else if m.TotalPages == 0 {
+		case m.TotalPages == 0:
 			// Edge case: API says 0 pages but has items — treat as page 1.
 			m.List.Title = fmt.Sprintf("Products in %s (Page %d/%d)", m.categoryName, m.CurrentPage, 1)
-		} else {
+		default:
 			m.List.Title = fmt.Sprintf("Products in %s (Page %d/%d)", m.categoryName, m.CurrentPage, m.TotalPages)
 		}
 
@@ -96,7 +97,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		// Check for 'n'/'p' navigation first
-		if pageChanged, newPage := m.PaginatedModel.UpdatePageNavigation(msg); pageChanged {
+		if pageChanged, newPage := m.UpdatePageNavigation(msg); pageChanged {
 			return m, func() tea.Msg {
 				return commands.LoadCategoryProductsPageMsg{
 					CategoryID:   m.categoryID,
@@ -106,8 +107,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
-		switch msg.String() {
-		case "enter":
+		if msg.String() == "enter" {
 			if len(m.List.VisibleItems()) > 0 && m.List.Index() < len(*m.products) {
 				selectedItem, ok := m.List.SelectedItem().(commands.ProductListItem)
 				if ok {

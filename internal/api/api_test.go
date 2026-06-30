@@ -503,3 +503,19 @@ func TestPaginationHeaders_BothHeadersMissing(t *testing.T) {
 	is.Equal(pagination.TotalItems, 0)
 	is.Equal(pagination.TotalPages, 0)
 }
+
+func TestNewClient_ReturnsClientInterface(t *testing.T) {
+	is := is.New(t)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+
+	// NewClient returns the Client interface per the package contract.
+	client := api.NewClient(server.URL)
+	_, _, err := client.FetchProducts(context.Background(), 1, 10)
+	is.NoErr(err)
+}

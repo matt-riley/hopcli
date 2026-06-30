@@ -73,8 +73,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "enter":
+		if msg.String() == "enter" {
 			selectedItem, ok := m.List.SelectedItem().(CategoryListItem) // Use exported field
 			if ok {
 				m.selectedCategory = selectedItem

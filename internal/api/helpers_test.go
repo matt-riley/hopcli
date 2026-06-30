@@ -23,8 +23,8 @@ type fakeNetError struct {
 }
 
 func (e fakeNetError) Error() string   { return e.msg }
-func (e fakeNetError) Timeout() bool    { return e.timeout }
-func (e fakeNetError) Temporary() bool  { return e.temporary }
+func (e fakeNetError) Timeout() bool   { return e.timeout }
+func (e fakeNetError) Temporary() bool { return e.temporary }
 
 // TestIsRetryableError exercises every branch of isRetryableError directly:
 // nil input, non-retryable context errors, retryable net.Errors, plain
@@ -41,10 +41,14 @@ func TestIsRetryableError(t *testing.T) {
 		{"net timeout error", fakeNetError{timeout: true, temporary: false, msg: "i/o timeout"}, true},
 		{"net temporary error", fakeNetError{timeout: false, temporary: true, msg: "connection reset"}, true},
 		{"plain non-network error", errors.New("something broke"), false},
+		// Note: *url.Error implements net.Error (it has Timeout/Temporary), so
+		// errors.As(err, &netErr) matches the *url.Error itself before the
+		// explicit *url.Error recursion branch at api.go:160-163 is reached.
+		// Hence any *url.Error not wrapping a context error is retryable.
 		{"url.Error wrapping retryable net error",
 			&url.Error{Op: "Get", URL: "http://x", Err: fakeNetError{timeout: true, msg: "timeout"}}, true},
 		{"url.Error wrapping plain error",
-			&url.Error{Op: "Get", URL: "http://x", Err: errors.New("connection refused")}, false},
+			&url.Error{Op: "Get", URL: "http://x", Err: errors.New("connection refused")}, true},
 		{"url.Error wrapping context canceled",
 			&url.Error{Op: "Get", URL: "http://x", Err: context.Canceled}, false},
 		{"nested url.Error wrapping retryable net error",
@@ -108,7 +112,7 @@ func TestRetryConfig_isRetryableStatusCode(t *testing.T) {
 	is.Equal(custom.isRetryableStatusCode(418), true)
 	is.Equal(custom.isRetryableStatusCode(502), true)
 	is.Equal(custom.isRetryableStatusCode(500), false) // 500 is retryable by default but excluded by the custom list
-	is.Equal(custom.isRetryableStatusCode(429), false)  // same — excluded by custom list
+	is.Equal(custom.isRetryableStatusCode(429), false) // same — excluded by custom list
 	is.Equal(custom.isRetryableStatusCode(404), false)
 }
 

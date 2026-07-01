@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6](https://github.com/matt-riley/hopcli/compare/v0.2.5...v0.2.6) (2026-07-01)
+
+
+### Performance Improvements
+
+* add request cancellation, categories cache, and page debounce ([#84](https://github.com/matt-riley/hopcli/issues/84)) ([a7fd8ee](https://github.com/matt-riley/hopcli/commit/a7fd8ee31baefcbb34e77a06ba991dd0c16a7e5f))
+
 ## [0.2.5](https://github.com/matt-riley/hopcli/compare/v0.2.4...v0.2.5) (2026-06-26)
 
 

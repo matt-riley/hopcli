@@ -18,7 +18,8 @@ type StartLoadingLatestMsg struct{}
 type StartLoadingCategoriesMsg struct{}
 
 type DefaultModel struct {
-	Choices list.Model // Exported
+	Choices    list.Model // Exported
+	configured bool
 }
 
 type ListItem struct {
@@ -65,6 +66,12 @@ func (dm DefaultModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		h, v := docStyle.GetFrameSize()
 		dm.Choices.SetSize(msg.Width-h, msg.Height-v) // Use exported field
+		if !dm.configured {
+			dm.Choices.Title = "The Hoptimist"    // Use exported field
+			dm.Choices.SetFilteringEnabled(false) // Use exported field
+			dm.Choices.SetShowStatusBar(false)    // Use exported field
+			dm.configured = true
+		}
 	}
 
 	var cmd tea.Cmd
@@ -73,8 +80,5 @@ func (dm DefaultModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (dm DefaultModel) View() tea.View {
-	dm.Choices.Title = "The Hoptimist"    // Use exported field
-	dm.Choices.SetFilteringEnabled(false) // Use exported field
-	dm.Choices.SetShowStatusBar(false)    // Use exported field
 	return tea.NewView(dm.Choices.View()) // Use exported field
 }

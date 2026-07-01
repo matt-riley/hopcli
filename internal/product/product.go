@@ -22,6 +22,7 @@ type (
 		Product Product
 		Width   int
 		Height  int
+		ErrMsg  string // error message to display in View()
 	}
 )
 
@@ -40,7 +41,12 @@ func (pm ProductModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		pm.Height = msg.Height
 		return pm, nil
 	case commands.ProductsMsg:
-		if msg.Err != nil {
+		if err := commands.ResponseError(msg); err != nil {
+			pm.ErrMsg = fmt.Sprintf("Error loading product: %v", err)
+			return pm, nil
+		}
+		if msg.Product == nil {
+			pm.ErrMsg = "Error: product data is missing"
 			return pm, nil
 		}
 		markdownDesc, err := md.ConvertString(msg.Product.Description)
@@ -68,12 +74,15 @@ func (pm ProductModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (pm ProductModel) View() tea.View {
+	if pm.ErrMsg != "" {
+		return tea.NewView(pm.ErrMsg)
+	}
 	renderer, err := glamour.NewTermRenderer(
 		glamour.WithStandardStyle("dark"),
 		glamour.WithWordWrap((pm.Width/3)*2),
 	)
 	if err != nil {
-		return tea.NewView("")
+		return tea.NewView(fmt.Sprintf("Error initializing renderer: %v", err))
 	}
 
 	var priceSection string
@@ -88,7 +97,7 @@ func (pm ProductModel) View() tea.View {
 		pm.Product.URL,
 	))
 	if err != nil {
-		return tea.NewView("")
+		return tea.NewView(fmt.Sprintf("Error rendering product: %v", err))
 	}
 	return tea.NewView(txt)
 }

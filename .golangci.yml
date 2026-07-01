@@ -3,8 +3,15 @@ linters:
   default: none
   enable:
     - errcheck
+    - gocritic
+    - gosec
     - govet
+    - misspell
+    - nilerr
     - staticcheck
     - unused
+formatters:
+  enable:
+    - goimports
 output:
   show-stats: false

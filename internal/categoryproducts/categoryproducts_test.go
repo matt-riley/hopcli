@@ -1,6 +1,7 @@
 package categoryproducts_test
 
 import (
+	"fmt"
 	"testing"
 
 	// list "charm.land/bubbles/v2/list" // Not directly used for assertions
@@ -40,11 +41,12 @@ func TestCategoryProductsModel_Update_ProductsForCategoryResponseMsg(t *testing.
 		CategoryName: "Test Cat",
 		TotalItems:   30,
 		TotalPages:   3,
-		Width:        80,
-		Height:       24,
 	}
 	updatedModel, _ := model.Update(msg)
-	cpm := updatedModel.(categoryproducts.Model)
+	cpm, ok := updatedModel.(categoryproducts.Model)
+	if !ok {
+		t.Fatalf("expected categoryproducts.Model, got %T", updatedModel)
+	}
 
 	is.Equal(cpm.TotalItems, 30)
 	is.Equal(cpm.TotalPages, 3)
@@ -52,6 +54,29 @@ func TestCategoryProductsModel_Update_ProductsForCategoryResponseMsg(t *testing.
 	is.Equal(cpm.List.Paginator.Page, 0) // CurrentPage is 1, Paginator.Page is 0-indexed
 	is.Equal(cpm.List.Paginator.PerPage, 10)
 	is.Equal(cpm.List.Paginator.TotalPages, 3)
+}
+
+func TestCategoryProductsModel_Update_ProductsForCategoryResponseMsg_Error(t *testing.T) {
+	is := is.New(t)
+	model := categoryproducts.NewModel("Test Cat", 1)
+
+	msg := commands.ProductsForCategoryResponseMsg{
+		Products:     nil,
+		CategoryID:   1,
+		CategoryName: "Test Cat",
+		Err:          fmt.Errorf("API error"),
+	}
+	updatedModel, _ := model.Update(msg)
+	cpm, ok := updatedModel.(categoryproducts.Model)
+	if !ok {
+		t.Fatalf("expected categoryproducts.Model, got %T", updatedModel)
+	}
+
+	is.Equal(cpm.ErrMsg, "API error")
+
+	// View should display the error
+	view := cpm.View()
+	is.True(view.Content != "")
 }
 
 func TestCategoryProductsModel_Update_PageNavigation(t *testing.T) {
@@ -71,11 +96,17 @@ func TestCategoryProductsModel_Update_PageNavigation(t *testing.T) {
 		is := is.New(t)
 		model := baseModel // Use baseModel as starting point for this sub-test
 		updatedModel, cmd := model.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
-		cpm := updatedModel.(categoryproducts.Model)
+		cpm, ok := updatedModel.(categoryproducts.Model)
+		if !ok {
+			t.Fatalf("expected categoryproducts.Model, got %T", updatedModel)
+		}
 
 		is.Equal(cpm.CurrentPage, 3)
 		is.True(cmd != nil)
-		pageMsg := cmd().(commands.LoadCategoryProductsPageMsg)
+		pageMsg, ok := cmd().(commands.LoadCategoryProductsPageMsg)
+		if !ok {
+			t.Fatalf("expected LoadCategoryProductsPageMsg, got %T", cmd())
+		}
 		is.Equal(pageMsg.Page, 3)
 		is.Equal(pageMsg.PerPage, initialPerPage)
 		is.Equal(pageMsg.CategoryID, initialCategoryID)
@@ -94,11 +125,17 @@ func TestCategoryProductsModel_Update_PageNavigation(t *testing.T) {
 		is := is.New(t)
 		model := baseModel // model starts at CurrentPage=2
 		updatedModel, cmd := model.Update(tea.KeyPressMsg{Code: 'p', Text: "p"})
-		cpm := updatedModel.(categoryproducts.Model)
+		cpm, ok := updatedModel.(categoryproducts.Model)
+		if !ok {
+			t.Fatalf("expected categoryproducts.Model, got %T", updatedModel)
+		}
 
 		is.Equal(cpm.CurrentPage, 1)
 		is.True(cmd != nil)
-		pageMsg := cmd().(commands.LoadCategoryProductsPageMsg)
+		pageMsg, ok := cmd().(commands.LoadCategoryProductsPageMsg)
+		if !ok {
+			t.Fatalf("expected LoadCategoryProductsPageMsg, got %T", cmd())
+		}
 		is.Equal(pageMsg.Page, 1)
 		is.Equal(pageMsg.PerPage, initialPerPage)
 		is.Equal(pageMsg.CategoryID, initialCategoryID)

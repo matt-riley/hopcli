@@ -34,7 +34,10 @@ func TestLatestModel_Update_LatestResponseMsg(t *testing.T) {
 	testProducts := &commands.Products{{ID: 1, Title: "Beer 1"}}
 	msg := commands.LatestResponseMsg{Products: testProducts, TotalItems: 25, TotalPages: 3, Width: 80, Height: 24}
 	updatedModel, _ := model.Update(msg)
-	lm := updatedModel.(latest.LatestModel)
+	lm, ok := updatedModel.(latest.LatestModel)
+	if !ok {
+		t.Fatalf("expected latest.LatestModel, got %T", updatedModel)
+	}
 
 	is.Equal(lm.TotalItems, 25)
 	is.Equal(lm.TotalPages, 3)
@@ -60,11 +63,17 @@ func TestLatestModel_Update_PageNavigation(t *testing.T) {
 		is := is.New(t)
 		model := baseModel // Use a copy or the base model if state changes are isolated
 		updatedModel, cmd := model.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
-		lm := updatedModel.(latest.LatestModel)
+		lm, ok := updatedModel.(latest.LatestModel)
+		if !ok {
+			t.Fatalf("expected latest.LatestModel, got %T", updatedModel)
+		}
 
 		is.Equal(lm.CurrentPage, 3)
 		is.True(cmd != nil)
-		pageMsg := cmd().(commands.LoadLatestPageMsg)
+		pageMsg, ok := cmd().(commands.LoadLatestPageMsg)
+		if !ok {
+			t.Fatalf("expected LoadLatestPageMsg, got %T", cmd())
+		}
 		is.Equal(pageMsg.Page, 3)
 		is.Equal(pageMsg.PerPage, 10)
 	})
@@ -74,7 +83,8 @@ func TestLatestModel_Update_PageNavigation(t *testing.T) {
 		lastPageModel := baseModel
 		lastPageModel.CurrentPage = 3 // Explicitly set to last page
 		updatedModel, cmd := lastPageModel.Update(tea.KeyPressMsg{Code: 'n', Text: "n"})
-		_ = updatedModel.(latest.LatestModel) // Perform assertion to ensure it's the correct type
+		_, ok := updatedModel.(latest.LatestModel)
+		is.True(ok) // Ensure it's the correct type
 
 		is.True(cmd == nil) // Should do nothing
 	})
@@ -83,11 +93,17 @@ func TestLatestModel_Update_PageNavigation(t *testing.T) {
 		is := is.New(t)
 		model := baseModel // model is CurrentPage=2 from initial setup
 		updatedModel, cmd := model.Update(tea.KeyPressMsg{Code: 'p', Text: "p"})
-		lm := updatedModel.(latest.LatestModel)
+		lm, ok := updatedModel.(latest.LatestModel)
+		if !ok {
+			t.Fatalf("expected latest.LatestModel, got %T", updatedModel)
+		}
 
 		is.Equal(lm.CurrentPage, 1)
 		is.True(cmd != nil)
-		pageMsg := cmd().(commands.LoadLatestPageMsg)
+		pageMsg, ok := cmd().(commands.LoadLatestPageMsg)
+		if !ok {
+			t.Fatalf("expected LoadLatestPageMsg, got %T", cmd())
+		}
 		is.Equal(pageMsg.Page, 1)
 		is.Equal(pageMsg.PerPage, 10) // Ensure PerPage is carried over
 	})
@@ -97,7 +113,8 @@ func TestLatestModel_Update_PageNavigation(t *testing.T) {
 		firstPageModel := baseModel
 		firstPageModel.CurrentPage = 1 // Explicitly set to first page
 		updatedModel, cmd := firstPageModel.Update(tea.KeyPressMsg{Code: 'p', Text: "p"})
-		_ = updatedModel.(latest.LatestModel) // Perform assertion
+		_, ok := updatedModel.(latest.LatestModel)
+		is.True(ok) // Ensure correct type
 
 		is.True(cmd == nil)
 	})

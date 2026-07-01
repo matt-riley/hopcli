@@ -25,6 +25,7 @@ type Model struct {
 	width            int
 	height           int
 	selectedCategory CategoryListItem
+	ErrMsg           string // error message to display in View()
 }
 
 func NewCategoriesModel() Model {
@@ -50,7 +51,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case commands.CategoriesResponseMsg:
-		if msg.Err != nil {
+		if err := commands.ResponseError(msg); err != nil {
+			m.ErrMsg = err.Error()
 			return m, nil
 		}
 		items := []list.Item{}
@@ -71,8 +73,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "enter":
+		if msg.String() == "enter" {
 			selectedItem, ok := m.List.SelectedItem().(CategoryListItem) // Use exported field
 			if ok {
 				m.selectedCategory = selectedItem
@@ -97,6 +98,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() tea.View {
+	if m.ErrMsg != "" {
+		return tea.NewView(docStyle.Render("Error: " + m.ErrMsg))
+	}
 	if m.List.Items() == nil || len(m.List.Items()) == 0 { // Use exported field
 		return tea.NewView(docStyle.Render("Loading categories..."))
 	}

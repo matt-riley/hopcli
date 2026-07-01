@@ -10,13 +10,52 @@ permissions:
   packages: read
 
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+      - name: Verify module dependencies
+        run: go mod verify
+      - name: Check go mod tidy
+        run: go mod tidy -diff
+
   ci:
+    needs: verify
     uses: matt-riley/matt-riley-ci/.github/workflows/ci.yml@0d1d8e7a149a53fcaaca6e128f62e0e3d8fdf293 # v2
     with:
       test: true
       lint: true
       vet: true
       fmt: true
+
+  coverage:
+    needs: ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+      - name: Run tests with coverage
+        run: go test -coverprofile=cover.out ./...
+      - name: Report coverage
+        run: go tool cover -func=cover.out
+      - name: Enforce coverage threshold
+        run: |
+          COVERAGE=$(go tool cover -func=cover.out | grep total | awk '{print $3}' | sed 's/%//')
+          THRESHOLD=71
+          if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+            echo "ERROR: Coverage $COVERAGE% is below threshold $THRESHOLD%"
+            exit 1
+          fi
+          echo "Coverage $COVERAGE% meets threshold $THRESHOLD%"
 
   govulncheck:
     needs: ci

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.7](https://github.com/matt-riley/hopcli/compare/v0.2.6...v0.2.7) (2026-07-04)
+
+
+### Bug Fixes
+
+* **deps:** update module charm.land/lipgloss/v2 to v2.0.5 ([#87](https://github.com/matt-riley/hopcli/issues/87)) ([121fcbf](https://github.com/matt-riley/hopcli/commit/121fcbf61059a62426480c6f4452f3ada8a51ada))
+
 ## [0.2.6](https://github.com/matt-riley/hopcli/compare/v0.2.5...v0.2.6) (2026-07-01)
 
 

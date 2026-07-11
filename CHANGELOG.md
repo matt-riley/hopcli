@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.8](https://github.com/matt-riley/hopcli/compare/v0.2.7...v0.2.8) (2026-07-10)
+
+
+### Bug Fixes
+
+* **deps:** update module charm.land/bubbletea/v2 to v2.0.8 ([#90](https://github.com/matt-riley/hopcli/issues/90)) ([96c3f2a](https://github.com/matt-riley/hopcli/commit/96c3f2aab2340ede0706cd764f52ad8c0f6dac2f))
+
 ## [0.2.7](https://github.com/matt-riley/hopcli/compare/v0.2.6...v0.2.7) (2026-07-04)
 
 

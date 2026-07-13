@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.9](https://github.com/matt-riley/hopcli/compare/v0.2.8...v0.2.9) (2026-07-13)
+
+
+### Bug Fixes
+
+* **deps:** update module charm.land/bubbles/v2 to v2.1.1 ([#92](https://github.com/matt-riley/hopcli/issues/92)) ([51fcd41](https://github.com/matt-riley/hopcli/commit/51fcd41e0611221c75c29d201bded45c14da475f))
+
 ## [0.2.8](https://github.com/matt-riley/hopcli/compare/v0.2.7...v0.2.8) (2026-07-10)
 
 

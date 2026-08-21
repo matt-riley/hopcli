@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.10](https://github.com/matt-riley/hopcli/compare/v0.2.9...v0.2.10) (2026-08-21)
+
+
+### Bug Fixes
+
+* bump golang.org/x/text to v0.39.0 ([d5e4a54](https://github.com/matt-riley/hopcli/commit/d5e4a546f8a8f605978dc92e4d6044fed0bb6cc1))
+* tidy go.sum and bump toolchain to 1.26.5 ([232e22b](https://github.com/matt-riley/hopcli/commit/232e22be058f3c5d9321ae5ccca1800084a58fdd))
+
 ## [0.2.9](https://github.com/matt-riley/hopcli/compare/v0.2.8...v0.2.9) (2026-07-13)
 
 

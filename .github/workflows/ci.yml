@@ -25,8 +25,13 @@ jobs:
         run: go mod tidy -diff
 
   ci:
+    permissions:
+      contents: read
+    concurrency:
+      group: ${{ github.workflow }}:${{ github.ref }}:ci
+      cancel-in-progress: true
     needs: verify
-    uses: matt-riley/matt-riley-ci/.github/workflows/ci.yml@2b0008a45ef931f133d0e6af65541d0292e56d82 # v3.0.3
+    uses: matt-riley/matt-riley-ci/.github/workflows/ci.yml@cb986078a5bd4775e5fb05348f3618e41fedf4de # v4
     with:
       test: true
       lint: true
@@ -58,6 +63,11 @@ jobs:
           echo "Coverage $COVERAGE% meets threshold $THRESHOLD%"
 
   govulncheck:
+    permissions:
+      contents: read
+    concurrency:
+      group: ${{ github.workflow }}:${{ github.ref }}:govulncheck
+      cancel-in-progress: true
     needs: ci
     if: ${{ always() }}
-    uses: matt-riley/matt-riley-ci/.github/workflows/go-security.yml@2b0008a45ef931f133d0e6af65541d0292e56d82 # v3.0.3
+    uses: matt-riley/matt-riley-ci/.github/workflows/go-security.yml@cb986078a5bd4775e5fb05348f3618e41fedf4de # v4

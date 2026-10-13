@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.12](https://github.com/matt-riley/hopcli/compare/v0.2.11...v0.2.12) (2026-10-13)
+
+
+### Bug Fixes
+
+* **api:** read the response body before cancelling the request context ([b2fb0ca](https://github.com/matt-riley/hopcli/commit/b2fb0cacccc4055a776174ad5054376889d0539a))
+* **tui:** keep the list paginator consistent with the items it holds ([000effb](https://github.com/matt-riley/hopcli/commit/000effb2adda3da024444ddb1b8af170121be44e))
+
 ## [0.2.11](https://github.com/matt-riley/hopcli/compare/v0.2.10...v0.2.11) (2026-10-13)
 
 

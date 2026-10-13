@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.10](https://github.com/matt-riley/hopcli/compare/v0.2.9...v0.2.10) (2026-10-13)
+
+
+### Bug Fixes
+
+* bump golang.org/x/text to v0.39.0 ([d5e4a54](https://github.com/matt-riley/hopcli/commit/d5e4a546f8a8f605978dc92e4d6044fed0bb6cc1))
+* **ci:** scan with govulncheck v1.9.0 ([7e060eb](https://github.com/matt-riley/hopcli/commit/7e060ebd9c725efdb2d1d1afa6d0532b3b99c126))
+* **deps:** clear govulncheck findings for the stdlib and x/net ([d6f552a](https://github.com/matt-riley/hopcli/commit/d6f552a0aa191c08eb172d760f2437d32dee0ace))
+* **deps:** update module charm.land/bubbles/v2 to v2.2.1 ([#102](https://github.com/matt-riley/hopcli/issues/102)) ([87ffbbf](https://github.com/matt-riley/hopcli/commit/87ffbbf9e038b552e0ecd5b79e9ec1fe51dee1a7))
+* tidy go.sum and bump toolchain to 1.26.5 ([232e22b](https://github.com/matt-riley/hopcli/commit/232e22be058f3c5d9321ae5ccca1800084a58fdd))
+
 ## [0.2.9](https://github.com/matt-riley/hopcli/compare/v0.2.8...v0.2.9) (2026-07-13)
 
 

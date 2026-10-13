@@ -38,7 +38,8 @@ jobs:
         run: |
           sudo apt update
           sudo apt install ffmpeg ttyd
-          go install github.com/charmbracelet/vhs@latest
+          # vhs tracks its own Go requirement; let the toolchain switch to it
+          GOTOOLCHAIN=auto go install github.com/charmbracelet/vhs@latest
           vhs tapes/demo.tape
       - name: Commit and push demo.webm
         uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d # v7

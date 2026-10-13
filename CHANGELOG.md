@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.13](https://github.com/matt-riley/hopcli/compare/v0.2.12...v0.2.13) (2026-10-13)
+
+
+### Bug Fixes
+
+* **ci:** create release drafts so GoReleaser can attach binaries ([9cc4caf](https://github.com/matt-riley/hopcli/commit/9cc4caf580f58536bc77615d33a76564a7b44be5))
+
 ## [0.2.12](https://github.com/matt-riley/hopcli/compare/v0.2.11...v0.2.12) (2026-10-13)
 
 

@@ -275,18 +275,7 @@ func (c *HTTPClient) doRequest(ctx context.Context, urlStr string) (*http.Respon
 			}
 		}
 
-		reqCtx, cancel := context.WithTimeout(ctx, c.timeout())
-		req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, urlStr, nil)
-		if err != nil {
-			cancel()
-			return nil, nil, err
-		}
-		if c.UserAgent != "" {
-			req.Header.Set("User-Agent", c.UserAgent)
-		}
-
-		resp, err := c.httpClient().Do(req)
-		cancel()
+		resp, body, err := c.attempt(ctx, urlStr)
 		if err != nil {
 			if isRetryableError(err) {
 				lastErr = err
@@ -297,20 +286,8 @@ func (c *HTTPClient) doRequest(ctx context.Context, urlStr string) (*http.Respon
 
 		// Retry on transient status codes.
 		if rc.isRetryableStatusCode(resp.StatusCode) {
-			_ = resp.Body.Close()
 			lastErr = fmt.Errorf("server returned status %d", resp.StatusCode)
 			continue
-		}
-
-		// Read the full body.
-		body, err := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		if err != nil {
-			if isRetryableError(err) {
-				lastErr = err
-				continue
-			}
-			return nil, nil, err
 		}
 
 		// Non-retryable 4xx: fail immediately with a clear error.
@@ -328,6 +305,36 @@ func (c *HTTPClient) doRequest(ctx context.Context, urlStr string) (*http.Respon
 	}
 
 	return nil, nil, fmt.Errorf("max retries exceeded (%d attempts): %w", maxAttempts, lastErr)
+}
+
+// attempt performs a single GET, reading the response body. The request
+// context is cancelled only after that read: cancelling any earlier aborts an
+// in-flight body read, which reports a healthy but slow response as
+// "context canceled" to the caller.
+func (c *HTTPClient) attempt(ctx context.Context, urlStr string) (*http.Response, []byte, error) {
+	reqCtx, cancel := context.WithTimeout(ctx, c.timeout())
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, urlStr, nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	if c.UserAgent != "" {
+		req.Header.Set("User-Agent", c.UserAgent)
+	}
+
+	resp, err := c.httpClient().Do(req)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return resp, body, nil
 }
 
 // parsePaginationHeaders extracts X-WP-Total and X-WP-TotalPages from response headers.

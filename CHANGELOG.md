@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.11](https://github.com/matt-riley/hopcli/compare/v0.2.10...v0.2.11) (2026-10-13)
+
+
+### Bug Fixes
+
+* **deps:** update module charm.land/bubbletea/v2 to v2.0.10 ([#101](https://github.com/matt-riley/hopcli/issues/101)) ([e971274](https://github.com/matt-riley/hopcli/commit/e97127409efe892acb708b90030d8d91d2fcb209))
+* **deps:** update module charm.land/lipgloss/v2 to v2.0.6 ([a0cc2dc](https://github.com/matt-riley/hopcli/commit/a0cc2dc1a17de97f0c37798ac62063d771c30d05))
+
 ## [0.2.10](https://github.com/matt-riley/hopcli/compare/v0.2.9...v0.2.10) (2026-10-13)
 
 

@@ -71,3 +71,7 @@ jobs:
     needs: ci
     if: ${{ always() }}
     uses: matt-riley/matt-riley-ci/.github/workflows/go-security.yml@cb986078a5bd4775e5fb05348f3618e41fedf4de # v4
+    with:
+      # v1.1.4's bundled x/tools cannot parse Go 1.27 sources
+      # (panic: unexpected expr: *ast.KeyValueExpr)
+      govulncheck-version: v1.9.0

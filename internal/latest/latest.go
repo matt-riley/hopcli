@@ -80,12 +80,10 @@ func (lm LatestModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			items = append(items, commands.NewProductListItem(product))
 		}
 		lm.Choices.SetSize(msg.Width, msg.Height)
+		// The list gets exactly one API page of items and owns its own
+		// paginator (page height, item count). Driving that paginator from the
+		// global page number sliced items[20:10] on page 3 and crashed the TUI.
 		lm.Choices.SetItems(items)
-
-		// Update list paginator
-		lm.Choices.Paginator.PerPage = lm.PerPage
-		lm.Choices.Paginator.Page = lm.CurrentPage - 1 // list.Paginator is 0-indexed
-		lm.Choices.Paginator.TotalPages = lm.TotalPages
 	}
 
 	// Propagate other messages (like key presses for list navigation) to the list model

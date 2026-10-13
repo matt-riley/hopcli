@@ -84,14 +84,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				items = append(items, commands.NewProductListItem(prod))
 			}
 		}
+		// The list gets exactly one API page of items and owns its own
+		// paginator (page height, item count). Driving that paginator from the
+		// global page number sliced items[20:10] on page 3 and crashed the TUI.
 		m.List.SetItems(items)
 		m.List.SetFilteringEnabled(false)
 		m.List.SetSize(m.width-docStyle.GetHorizontalFrameSize(), m.height-docStyle.GetVerticalFrameSize())
-
-		// Update list paginator
-		m.List.Paginator.PerPage = m.PerPage
-		m.List.Paginator.Page = m.CurrentPage - 1 // list.Paginator is 0-indexed
-		m.List.Paginator.TotalPages = m.TotalPages
 
 		return m, nil
 

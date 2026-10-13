@@ -1,6 +1,8 @@
 package latest_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	// "charm.land/bubbles/v2/list" // Not directly used for assertions, list.Model is in latest.LatestModel
@@ -42,9 +44,9 @@ func TestLatestModel_Update_LatestResponseMsg(t *testing.T) {
 	is.Equal(lm.TotalItems, 25)
 	is.Equal(lm.TotalPages, 3)
 	is.Equal(len(lm.Choices.Items()), 1)
-	is.Equal(lm.Choices.Paginator.Page, 0) // CurrentPage is 1, Paginator.Page is 0-indexed
-	is.Equal(lm.Choices.Paginator.PerPage, 10)
-	is.Equal(lm.Choices.Paginator.TotalPages, 3)
+	// The list renders from the start of the page it was handed; the global
+	// page number lives in PaginatedModel, not in the list's own paginator.
+	is.Equal(lm.Choices.Paginator.Page, 0)
 }
 
 func TestLatestModel_Update_PageNavigation(t *testing.T) {
@@ -118,4 +120,57 @@ func TestLatestModel_Update_PageNavigation(t *testing.T) {
 
 		is.True(cmd == nil)
 	})
+}
+
+// onePageOfProducts returns the ten products a single API page holds.
+func onePageOfProducts() *commands.Products {
+	products := make(commands.Products, 10)
+	for i := range products {
+		products[i] = commands.Product{
+			ID:     i + 1,
+			Title:  fmt.Sprintf("Product %d", i+1),
+			Prices: commands.ProductPrices{Price: "420", CurrencyPrefix: "£", CurrencyMinorUnit: 2},
+		}
+	}
+	return &products
+}
+
+// TestLatestModel_View_LaterPage reproduces the crash from the demo gif: the
+// view died with "slice bounds out of range [20:10]" because the list was told
+// it was on page 3 (Paginator.Page = 2) while holding a single page of ten
+// items, so it tried to slice items[20:10].
+func TestLatestModel_View_LaterPage(t *testing.T) {
+	is := is.New(t)
+
+	model := latest.NewLatestModel()
+	model.CurrentPage = 3
+	model.PerPage = 10
+	model.TotalPages = 4
+
+	updated, _ := model.Update(commands.LatestResponseMsg{
+		Products:   onePageOfProducts(),
+		Width:      120,
+		Height:     80,
+		TotalItems: 34,
+		TotalPages: 4,
+	})
+	model, ok := updated.(latest.LatestModel)
+	is.True(ok)
+
+	// A panic here is the [20:10] crash: the list sliced a global page window
+	// out of a single page of items.
+	var view string
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Fatalf("View() panicked: %v", r)
+			}
+		}()
+		view = model.View().Content
+	}()
+
+	// The list holds only this page's items, so it must render all of them.
+	is.True(strings.Contains(view, "Product 1"))
+	is.True(strings.Contains(view, "Product 10"))
+	is.True(strings.Contains(view, "Page 3/4"))
 }

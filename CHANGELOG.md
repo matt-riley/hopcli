@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.14](https://github.com/matt-riley/hopcli/compare/v0.2.13...v0.2.14) (2026-10-22)
+
+
+### Bug Fixes
+
+* **deps:** bump Go toolchain to 1.27.3 for stdlib security fix ([#109](https://github.com/matt-riley/hopcli/issues/109)) ([cceba05](https://github.com/matt-riley/hopcli/commit/cceba0500559ebab0e0ec6f44ed808214f035d68))
+* **deps:** update module charm.land/bubbletea/v2 to v2.1.0 ([daed39b](https://github.com/matt-riley/hopcli/commit/daed39b7c4536376444e75ed552e3f7a72b63e04))
+
 ## [0.2.13](https://github.com/matt-riley/hopcli/compare/v0.2.12...v0.2.13) (2026-10-13)
 
 

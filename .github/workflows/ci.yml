@@ -10,27 +10,12 @@ permissions:
   packages: read
 
 jobs:
-  verify:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        with:
-          go-version-file: go.mod
-      - name: Verify module dependencies
-        run: go mod verify
-      - name: Check go mod tidy
-        run: go mod tidy -diff
-
   ci:
     permissions:
       contents: read
     concurrency:
       group: ${{ github.workflow }}:${{ github.ref }}:ci
       cancel-in-progress: true
-    needs: verify
     uses: matt-riley/matt-riley-ci/.github/workflows/ci.yml@002d16c00bc74ebced433f0a16187c9b13451194 # v4.2.0
     with:
       test: true
@@ -38,29 +23,25 @@ jobs:
       vet: true
       fmt: true
 
-  coverage:
+  go-ci:
+    permissions:
+      contents: read
+    concurrency:
+      group: ${{ github.workflow }}:${{ github.ref }}:go-ci
+      cancel-in-progress: true
     needs: ci
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        with:
-          go-version-file: go.mod
-      - name: Run tests with coverage
-        run: go test -coverprofile=cover.out ./...
-      - name: Report coverage
-        run: go tool cover -func=cover.out
-      - name: Enforce coverage threshold
-        run: |
-          COVERAGE=$(go tool cover -func=cover.out | grep total | awk '{print $3}' | sed 's/%//')
-          THRESHOLD=71
-          if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
-            echo "ERROR: Coverage $COVERAGE% is below threshold $THRESHOLD%"
-            exit 1
-          fi
-          echo "Coverage $COVERAGE% meets threshold $THRESHOLD%"
+    uses: matt-riley/matt-riley-ci/.github/workflows/go-ci.yml@002d16c00bc74ebced433f0a16187c9b13451194 # v4.2.0
+    with:
+      # Replaces the old own `verify` job (go mod verify, go mod tidy -diff)
+      # and `coverage` job (go test -coverprofile, 71% gate).
+      run-verify: true
+      run-tidy: true
+      run-test: true
+      run-vet: false
+      test-args: -coverprofile=cover.out
+      coverage-path: cover.out
+      coverage-artifact-name: coverage
+      coverage-threshold: 71
 
   govulncheck:
     permissions:

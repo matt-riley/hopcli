@@ -1,0 +1,43 @@
+name: gohawk
+
+on:
+  pull_request:
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/gohawk.yml"
+  push:
+    branches: [main]
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - ".github/workflows/gohawk.yml"
+
+concurrency:
+  group: ${{ github.workflow }}:${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gohawk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+      # Official gohawk CI (https://github.com/kojah/gohawk/blob/v0.7.2/docs/ci.md).
+      # The requested gohawk/go-staticcheck and gohawk/go-mod-tidy GitHub Actions
+      # do not exist (repos 404; no Marketplace listing).
+      - name: Install gohawk
+        run: go install github.com/kojah/gohawk@v0.7.2
+      - name: Run gohawk
+        run: gohawk ./...

@@ -20,7 +20,7 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
-    uses: matt-riley/matt-riley-ci/.github/workflows/release-please.yml@002d16c00bc74ebced433f0a16187c9b13451194 # v4.2.0
+    uses: matt-riley/matt-riley-ci/.github/workflows/release-please.yml@d903a20396dce0f98960a8c9ea96848349682540 # v4.2.0
     secrets:
       token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
@@ -30,7 +30,7 @@ jobs:
     permissions:
       contents: read
       actions: write
-    uses: matt-riley/matt-riley-ci/.github/workflows/release-please-dispatch.yml@002d16c00bc74ebced433f0a16187c9b13451194 # v4.2.0
+    uses: matt-riley/matt-riley-ci/.github/workflows/release-please-dispatch.yml@d903a20396dce0f98960a8c9ea96848349682540 # v4.2.0
     with:
       release-created: ${{ needs.release-please.outputs.release_created }}
       tag: ${{ needs.release-please.outputs.tag_name }}

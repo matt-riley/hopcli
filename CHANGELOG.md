@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.15](https://github.com/matt-riley/hopcli/compare/v0.2.14...v0.2.15) (2026-11-18)
+
+
+### Bug Fixes
+
+* **deps:** update weekly patch and digest updates ([1ee9bbb](https://github.com/matt-riley/hopcli/commit/1ee9bbb698e58b5a88a7d39a341ffc4788b6e534))
+
 ## [0.2.14](https://github.com/matt-riley/hopcli/compare/v0.2.13...v0.2.14) (2026-10-22)
 
 

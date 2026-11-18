@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.16](https://github.com/matt-riley/hopcli/compare/v0.2.15...v0.2.16) (2026-11-18)
+
+
+### Bug Fixes
+
+* **deps:** update weekly minor and pin updates ([#117](https://github.com/matt-riley/hopcli/issues/117)) ([946d719](https://github.com/matt-riley/hopcli/commit/946d7197722371b33573d092e43b43ce75256859))
+
 ## [0.2.15](https://github.com/matt-riley/hopcli/compare/v0.2.14...v0.2.15) (2026-11-18)
 
 
